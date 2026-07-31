@@ -71,6 +71,14 @@ jobs:
             gladys-assistant-integration.json > "$tmp"
           mv "$tmp" gladys-assistant-integration.json
 
+          # jq reprints the whole file with its own style (it expands short
+          # arrays over several lines), which does not match .prettierrc.json
+          # and makes the `prettier --check .` gate of ci.yml fail on the very
+          # next push. Reformat what jq just wrote, with the same Prettier
+          # range as the devDependency so both jobs agree on the output.
+          npx --yes "prettier@$(node -p "require('./package.json').devDependencies.prettier")" \
+            --write gladys-assistant-integration.json
+
           echo "version=${new_version}" >> "$GITHUB_OUTPUT"
 
       # Note: if the branch you release from is protected against direct pushes,
