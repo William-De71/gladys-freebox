@@ -19,6 +19,20 @@ import { FREEBOX_LOCAL_URL, APP_IDENTITY, PLAYER } from './constants.js';
 
 const logger = createLogger({ name: 'freebox-client' });
 
+/**
+ * Normalize a Freebox `result` payload into an array. Depending on the box
+ * state (no home module installed, empty collection...), the API answers with
+ * an object or `null` where a list is documented, so callers must never assume
+ * an array.
+ * @param {any} result - The raw `result` field of a Freebox response.
+ * @returns {any[]} The result as an array, empty when it is not a list.
+ * @example
+ * asArray({ result: [] }.result); // []
+ */
+function asArray(result) {
+  return Array.isArray(result) ? result : [];
+}
+
 export class FreeboxClient {
   constructor() {
     // Resolved by discover(): e.g. "https://mafreebox.freebox.fr/api/v8".
@@ -205,7 +219,7 @@ export class FreeboxClient {
    */
   async loadDevices(appToken) {
     const { data } = await this.authRequest(appToken, { path: '/home/tileset/all' });
-    const tiles = (data && data.result) || [];
+    const tiles = asArray(data && data.result);
 
     const devicesByNodeId = {};
     tiles.forEach((tile) => {
@@ -230,8 +244,8 @@ export class FreeboxClient {
    */
   async loadNodeValues(appToken, nodeId) {
     const { data } = await this.authRequest(appToken, { path: `/home/tileset/${nodeId}` });
-    const tile = data && data.result && data.result[0];
-    return (tile && tile.data) || [];
+    const [tile] = asArray(data && data.result);
+    return asArray(tile && tile.data);
   }
 
   /**
@@ -262,7 +276,7 @@ export class FreeboxClient {
    */
   async loadPlayers(appToken) {
     const { data } = await this.authRequest(appToken, { path: '/player' });
-    const allPlayers = (data && data.result) || [];
+    const allPlayers = asArray(data && data.result);
 
     // Only players exposing the local player API can be controlled. On the
     // Freebox Player POP (Android TV, stb_v8), api_available is false: Free
