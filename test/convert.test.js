@@ -105,3 +105,27 @@ test('getPlayerBaseUrl uses the stored API version, defaulting to v6', () => {
     '/player/2/api/v6',
   );
 });
+
+// `name` is NOT NULL in Gladys: a device published without a name is rejected
+// when the user creates it from the discovery screen.
+test('convertPlayer falls back on a name when the Freebox sends none', () => {
+  const missing = convertPlayer({ id: 3, api_version: '7.0' });
+  assert.equal(missing.name, 'Freebox Player 3');
+
+  const empty = convertPlayer({ id: 4, device_name: '', api_version: '7.0' });
+  assert.equal(empty.name, 'Freebox Player 4');
+});
+
+test('convertPlayer keeps the default API version when none is advertised', () => {
+  const device = convertPlayer({ id: 1, device_name: 'Player Salon' });
+  const apiParam = device.params.find((p) => p.name === 'PLAYER_API_VERSION');
+  assert.equal(apiParam.value, 'v6');
+});
+
+test('convertDevice falls back on a name when the tile has no label', () => {
+  const device = convertDevice({
+    node_id: 12,
+    specifications: [{ node_id: 12, type: 'basic_shutter', data: [] }],
+  });
+  assert.equal(device.name, 'Freebox 12');
+});

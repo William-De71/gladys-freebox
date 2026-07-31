@@ -29,6 +29,9 @@ export const PLAYER = {
   API_VERSION_PARAM: 'PLAYER_API_VERSION',
   DEFAULT_API_VERSION: 'v6',
   MODEL: 'player',
+  // Fallback name when the Freebox does not advertise a device_name: `name` is
+  // NOT NULL in Gladys, an unnamed device cannot be created.
+  DEFAULT_NAME: 'Freebox Player',
 };
 
 // HTTPS access to the Freebox: https://dev.freebox.fr/sdk/os/#https-access

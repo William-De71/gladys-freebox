@@ -89,8 +89,12 @@ export function convertFeature(freeboxFunction, externalId) {
  * convertDevice({ node_id: 12, specifications: [...] });
  */
 export function convertDevice(freeboxDevice) {
-  const { action, label: name, node_id: id, type, data } = freeboxDevice.specifications[0];
+  const { action, label, node_id: id, type, data } = freeboxDevice.specifications[0];
   const externalId = `freebox:${id}`;
+
+  // `name` is NOT NULL in Gladys: an unlabelled tile would be rejected when the
+  // user creates the device. Fall back on a stable label built from the node id.
+  const name = label || `Freebox ${id}`;
 
   logger.debug(`Freebox convert device "${name}"`);
 
@@ -227,13 +231,22 @@ const PLAYER_FEATURES = [
  * convertPlayer({ id: 1, device_name: 'Freebox Player', api_version: '7.0' });
  */
 export function convertPlayer(freeboxPlayer) {
-  const { id, device_name: name, api_version: apiVersion } = freeboxPlayer;
+  const { id, device_name: deviceName, api_version: apiVersion } = freeboxPlayer;
   const externalId = `freebox:${PLAYER.EXTERNAL_ID_SEGMENT}:${id}`;
+
+  // `name` is NOT NULL in Gladys: a player whose device_name is missing or
+  // empty would be rejected when the user creates it. Fall back on a stable
+  // label built from the player id.
+  const name = deviceName || `${PLAYER.DEFAULT_NAME} ${id}`;
 
   logger.debug(`Freebox convert player "${name}"`);
 
-  // Player API is versioned independently ("7.0" -> "v7" in the URL).
-  const [apiVersionMajor] = `${apiVersion}`.split('.');
+  // Player API is versioned independently ("7.0" -> "v7" in the URL). Keep the
+  // documented default when the box does not advertise a version, so the param
+  // never ends up as "vundefined".
+  const apiVersionParam = apiVersion
+    ? `v${`${apiVersion}`.split('.')[0]}`
+    : PLAYER.DEFAULT_API_VERSION;
 
   const features = PLAYER_FEATURES.map((feature) => ({
     name: feature.name,
@@ -255,7 +268,7 @@ export function convertPlayer(freeboxPlayer) {
     model: PLAYER.MODEL,
     poll_frequency: POLL_EVERY_30_SECONDS,
     should_poll: true,
-    params: [{ name: PLAYER.API_VERSION_PARAM, value: `v${apiVersionMajor}` }],
+    params: [{ name: PLAYER.API_VERSION_PARAM, value: apiVersionParam }],
   };
 }
 
