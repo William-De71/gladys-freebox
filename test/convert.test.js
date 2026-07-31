@@ -116,6 +116,52 @@ test('convertPlayer falls back on a name when the Freebox sends none', () => {
   assert.equal(empty.name, 'Freebox Player 4');
 });
 
+// The Gladys core generates the feature selector with slugify(name) and that
+// column is UNIQUE across the whole table: plain names like "Volume" or "Play"
+// collide with other integrations (and between two players), which makes the
+// device creation fail with a generic error in the UI.
+test('convertPlayer publishes unique selectors, never plain feature names', () => {
+  const device = convertPlayer({ id: 1, device_name: 'Player Salon', api_version: '7.0' });
+
+  assert.equal(device.selector, 'freebox-player-1');
+  const volume = device.features.find((f) => f.type === 'volume');
+  assert.equal(volume.selector, 'freebox-player-1-volume');
+  assert.equal(volume.name, 'Volume', 'the display name stays readable');
+
+  // Two different players must never share a selector.
+  const other = convertPlayer({ id: 2, device_name: 'Player Salon', api_version: '7.0' });
+  const selectors = [...device.features, ...other.features].map((f) => f.selector);
+  assert.equal(new Set(selectors).size, selectors.length, 'all feature selectors are unique');
+  assert.notEqual(device.selector, other.selector);
+});
+
+test('convertDevice publishes unique selectors for home devices', () => {
+  const device = convertDevice({
+    specifications: [
+      {
+        node_id: 12,
+        label: 'Volet',
+        type: 'basic_shutter',
+        action: 'store',
+        data: [{ ep_id: 3, name: 'position', ui: { access: 'rw' } }],
+      },
+    ],
+  });
+  assert.equal(device.selector, 'freebox-12');
+  assert.equal(device.features[0].selector, 'freebox-12-3-position');
+});
+
+// The id builds every external_id and selector: publishing a player without one
+// would produce "freebox:player:undefined". Player id 0 is valid.
+test('convertPlayer rejects a player without id but accepts id 0', () => {
+  assert.throws(() => convertPlayer({ device_name: 'Ghost' }), /without id/);
+  assert.throws(() => convertPlayer({ id: null, device_name: 'Ghost' }), /without id/);
+
+  const first = convertPlayer({ id: 0, device_name: 'Player', api_version: '7.0' });
+  assert.equal(first.external_id, 'freebox:player:0');
+  assert.equal(first.selector, 'freebox-player-0');
+});
+
 test('convertPlayer keeps the default API version when none is advertised', () => {
   const device = convertPlayer({ id: 1, device_name: 'Player Salon' });
   const apiParam = device.params.find((p) => p.name === 'PLAYER_API_VERSION');

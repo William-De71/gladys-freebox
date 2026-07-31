@@ -57,9 +57,16 @@ export function convertFeature(freeboxFunction, externalId) {
     return undefined;
   }
 
+  // The core builds the feature selector with slugify(name) and that column is
+  // UNIQUE across the whole table. Freebox function names ("position", "cam",
+  // "battery_warning") are generic enough to collide with another integration,
+  // so publish an explicit selector built from the node and endpoint ids.
+  const nodeId = externalId.split(':')[1];
+
   const feature = {
     name,
     external_id: `${externalId}:${epId}`,
+    selector: `freebox-${nodeId}-${epId}-${name}`,
     read_only: readOnly,
     keep_history: true,
     has_feedback: false,
@@ -110,9 +117,12 @@ export function convertDevice(freeboxDevice) {
     .map((group) => convertFeature(group, externalId))
     .filter(Boolean);
 
+  // Same UNIQUE selector constraint as the features: a device named like an
+  // existing one (an homonym in another integration) would be rejected.
   const device = {
     name,
     external_id: externalId,
+    selector: `freebox-${id}`,
     features,
     model,
     poll_frequency: POLL_EVERY_30_SECONDS,
@@ -232,14 +242,22 @@ const PLAYER_FEATURES = [
  */
 export function convertPlayer(freeboxPlayer) {
   const { id, device_name: deviceName, api_version: apiVersion } = freeboxPlayer;
+
+  // The player id builds every external_id AND every feature selector: without
+  // it we would publish "freebox:player:undefined" and collide with any other
+  // unidentified player. Player id 0 is valid, so only null/undefined/'' fail.
+  if (id === undefined || id === null || `${id}` === '') {
+    throw new Error(
+      `Freebox player without id, cannot be published: ${JSON.stringify(freeboxPlayer)}`,
+    );
+  }
+
   const externalId = `freebox:${PLAYER.EXTERNAL_ID_SEGMENT}:${id}`;
 
   // `name` is NOT NULL in Gladys: a player whose device_name is missing or
   // empty would be rejected when the user creates it. Fall back on a stable
   // label built from the player id.
   const name = deviceName || `${PLAYER.DEFAULT_NAME} ${id}`;
-
-  logger.debug(`Freebox convert player "${name}"`);
 
   // Player API is versioned independently ("7.0" -> "v7" in the URL). Keep the
   // documented default when the box does not advertise a version, so the param
@@ -248,9 +266,16 @@ export function convertPlayer(freeboxPlayer) {
     ? `v${`${apiVersion}`.split('.')[0]}`
     : PLAYER.DEFAULT_API_VERSION;
 
+  // The Gladys core generates a feature selector with slugify(name) and that
+  // column is UNIQUE across the WHOLE table, not per device. Plain names like
+  // "Volume" or "Play" would collide with any feature of any other integration
+  // (and between two Freebox Players), making the device creation fail with a
+  // generic error. Publishing an explicit selector derived from the player id
+  // keeps the display name readable while guaranteeing uniqueness.
   const features = PLAYER_FEATURES.map((feature) => ({
     name: feature.name,
     external_id: `${externalId}:${feature.type}`,
+    selector: `freebox-${PLAYER.EXTERNAL_ID_SEGMENT}-${id}-${feature.type}`,
     category: DEVICE_FEATURE_CATEGORIES.TELEVISION,
     type: feature.type,
     unit: feature.unit,
@@ -261,9 +286,15 @@ export function convertPlayer(freeboxPlayer) {
     max: feature.max,
   }));
 
+  logger.info(
+    `Freebox player "${name}" (id=${id}, api=${apiVersionParam}) converted with ` +
+      `${features.length} feature(s): ${features.map((f) => f.selector).join(', ')}`,
+  );
+
   return {
     name,
     external_id: externalId,
+    selector: `freebox-${PLAYER.EXTERNAL_ID_SEGMENT}-${id}`,
     features,
     model: PLAYER.MODEL,
     poll_frequency: POLL_EVERY_30_SECONDS,

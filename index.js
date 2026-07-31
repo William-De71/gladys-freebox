@@ -57,7 +57,19 @@ async function publishDevicesIfPaired() {
     return;
   }
   const devices = await buildDiscoveredDevices(gladys, client, appToken);
-  await gladys.publishDiscoveredDevices(devices);
+  try {
+    const result = await gladys.publishDiscoveredDevices(devices);
+    logger.info(
+      `Freebox: ${devices.length} device(s) published (core count: ${result && result.count})`,
+    );
+  } catch (e) {
+    // GladysApiError carries the real reason (status / code / message); the UI
+    // only shows a generic error, so log the details here.
+    logger.error(
+      `Freebox: publishing the devices failed [${e.status || '?'} ${e.code || '?'}]: ${e.message}`,
+    );
+    throw e;
+  }
   await gladys.setConnectionStatus(true).catch(() => {});
 }
 
@@ -91,6 +103,20 @@ gladys.onPoll(async (device) => {
     logger.error(`onPoll failed for ${device.external_id}: ${e.message}`);
     logger.debug(e);
   }
+});
+
+// --- Device lifecycle: trace what the user actually creates ------------------
+// The Gladys UI only shows a generic "an error occurred" when a creation fails.
+// These handlers confirm in the logs which devices went through.
+gladys.onDeviceCreated(async (device) => {
+  logger.info(
+    `Device created in Gladys: "${device.name}" (${device.external_id}, ` +
+      `selector=${device.selector}, ${(device.features || []).length} feature(s))`,
+  );
+});
+
+gladys.onDeviceUpdated(async (device) => {
+  logger.info(`Device updated in Gladys: "${device.name}" (${device.external_id})`);
 });
 
 // --- Camera: Gladys needs a FRESH image of a camera device -------------------

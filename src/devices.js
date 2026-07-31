@@ -70,13 +70,44 @@ export async function buildDiscoveredDevices(gladys, client, appToken) {
     try {
       devices.push(convertPlayer(player));
     } catch (e) {
-      logger.error('Error converting Freebox player', e);
+      logger.error(
+        `Error converting Freebox player "${player && player.device_name}": ${e.message}`,
+      );
+      logger.debug(e);
     }
   });
 
   logger.info(`Freebox discovery: ${devices.length} device(s) built`);
-  // Prefix every device/feature external_id with `ext:<selector>:`.
-  return devices.map((device) => toPublishedDevice(gladys, device));
+
+  const published = devices.map((device) => toPublishedDevice(gladys, device));
+
+  // A duplicated selector makes the core reject the device creation with a
+  // generic error, so surface it here rather than at creation time.
+  const selectors = new Map();
+  published.forEach((device) => {
+    [
+      { selector: device.selector, label: device.name },
+      ...(device.features || []).map((f) => ({
+        selector: f.selector,
+        label: `${device.name}/${f.name}`,
+      })),
+    ].forEach(({ selector, label }) => {
+      if (!selector) {
+        return;
+      }
+      if (selectors.has(selector)) {
+        logger.warn(
+          `Freebox: duplicated selector "${selector}" (${selectors.get(selector)} and ${label}) — ` +
+            `the core will refuse to create one of them.`,
+        );
+      }
+      selectors.set(selector, label);
+    });
+  });
+
+  logger.debug(`Freebox published payload: ${JSON.stringify(published)}`);
+
+  return published;
 }
 
 /**
