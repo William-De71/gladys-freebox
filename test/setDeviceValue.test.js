@@ -129,16 +129,84 @@ test('alarm buttons are pressed with a null payload', async () => {
 // --- Polling ---------------------------------------------------------------
 
 /** Capture the states a poll publishes. */
-function fakeGladys() {
+function fakeGladys({ devices = [] } = {}) {
   const published = [];
+  let getDevicesCalls = 0;
   return {
     selector: SELECTOR,
     published,
+    devices,
+    get getDevicesCalls() {
+      return getDevicesCalls;
+    },
+    getDevices: async () => {
+      getDevicesCalls += 1;
+      return devices;
+    },
     publishStates: async (states) => {
       published.push(...states);
     },
   };
 }
+
+// The core sends the poll and setValue payloads WITHOUT the device features
+// (nor its name and model), exactly as observed in production:
+//   onPoll <- ...:freebox:30 ("undefined", model=undefined, 0 feature(s))
+// Every handler reading device.features then silently did nothing.
+const bareDevice = { external_id: ext('freebox:21') };
+
+test('polling resolves the features from the SDK cache when the core sends none', async () => {
+  const target = fakeGladys({ devices: [shutterDevice] });
+  const client = fakeClient({ nodeValues: [{ ep_id: 3, value: 85 }] });
+
+  await pollDevice(target, client, 'token', bareDevice);
+
+  assert.deepEqual(target.published[0], {
+    device_feature_external_id: ext('freebox:21:3'),
+    state: 15,
+  });
+  assert.equal(target.getDevicesCalls, 0, 'the cache is enough, no refetch');
+});
+
+// A device created while the integration is running is not in the cache yet.
+test('polling refetches the devices when the cache misses', async () => {
+  const target = fakeGladys({ devices: [] });
+  target.devices = [];
+  const client = fakeClient({ nodeValues: [{ ep_id: 3, value: 85 }] });
+  // getDevices() refreshes the cache the SDK exposes.
+  target.getDevices = async () => {
+    target.devices = [shutterDevice];
+    return target.devices;
+  };
+
+  await pollDevice(target, client, 'token', bareDevice);
+
+  assert.equal(target.published.length, 1);
+});
+
+// `model` drives the shutter routing: letting the core's undefined overwrite
+// the cached value would send open/close to the wrong endpoint.
+test('a bare setValue keeps the cached model and features', async () => {
+  const target = fakeGladys({ devices: [{ ...shutterDevice, model: 'store' }] });
+  const client = fakeClient();
+
+  await setDeviceValue(target, client, 'token', bareDevice, shutterStateFeature, COVER_STATE.OPEN);
+
+  assert.deepEqual(
+    client.writes[0],
+    { nodeId: '21', endpointId: 0, value: null },
+    'the cached "store" model routes to its own open endpoint',
+  );
+});
+
+test('a bare shutter command finds the position endpoint through the cache', async () => {
+  const target = fakeGladys({ devices: [shutterDevice] });
+  const client = fakeClient();
+
+  await setDeviceValue(target, client, 'token', bareDevice, shutterStateFeature, COVER_STATE.CLOSE);
+
+  assert.deepEqual(client.writes[0], { nodeId: '21', endpointId: '3', value: 100 });
+});
 
 // The write-only shutter control has no readable state. Publishing a string in
 // the numeric `state` column used to make the core reject the WHOLE batch,
@@ -199,6 +267,20 @@ test('polling publishes nothing for endpoints without a value', async () => {
   };
 
   await pollDevice(target, client, 'token', device);
+
+  assert.equal(target.published.length, 0);
+});
+
+// Defensive: no cache, no getDevices (or a failing one). The poll must warn
+// and give up, never throw and mask the real problem behind a stack trace.
+test('polling a device with no resolvable feature stays silent', async () => {
+  const target = fakeGladys({ devices: [] });
+  target.getDevices = async () => {
+    throw new Error('host unreachable');
+  };
+  const client = fakeClient({ nodeValues: [{ ep_id: 3, value: 85 }] });
+
+  await pollDevice(target, client, 'token', bareDevice);
 
   assert.equal(target.published.length, 0);
 });

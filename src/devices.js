@@ -111,6 +111,55 @@ export async function buildDiscoveredDevices(gladys, client, appToken) {
 }
 
 /**
+ * Return the device with its features, fetching them when the core sent a
+ * bare device.
+ *
+ * The core sends the poll/setValue payload without `features` (nor `name` and
+ * `model`), so a handler relying on `device.features` — reading a value,
+ * finding the shutter position endpoint — silently does nothing. The SDK keeps
+ * a local copy of the devices, refreshed on connection and on every
+ * creation/update, so resolve against it and fall back on a fetch.
+ * @param {object} gladys - The Gladys SDK instance.
+ * @param {object} device - The device received from the core.
+ * @returns {Promise<object>} The device, with its features when available.
+ * @example
+ * const full = await withFeatures(gladys, device);
+ */
+async function withFeatures(gladys, device) {
+  if ((device.features || []).length > 0) {
+    return device;
+  }
+
+  const findInCache = () =>
+    (gladys.devices || []).find((d) => d.external_id === device.external_id);
+
+  let known = findInCache();
+  if (!known || (known.features || []).length === 0) {
+    // Not in the cache yet (device created while we were running): refresh it.
+    try {
+      await gladys.getDevices();
+      known = findInCache();
+    } catch (e) {
+      logger.warn(`Freebox: unable to refresh the devices from Gladys: ${e.message}`);
+    }
+  }
+
+  if (!known || (known.features || []).length === 0) {
+    logger.warn(
+      `Freebox: "${device.external_id}" has no feature, neither in the poll payload nor in Gladys`,
+    );
+    return device;
+  }
+
+  // Spreading the core payload last would put its `undefined` name/model back
+  // over the cached ones, so only keep the keys it actually carries.
+  const provided = Object.fromEntries(
+    Object.entries(device).filter(([, v]) => v !== undefined && v !== null),
+  );
+  return { ...known, ...provided, features: known.features };
+}
+
+/**
  * Poll a Gladys device: read its current values and publish the states.
  * @param {object} gladys - The Gladys SDK instance.
  * @param {import('./freebox/FreeboxClient.js').FreeboxClient} client - Freebox client.
@@ -120,13 +169,17 @@ export async function buildDiscoveredDevices(gladys, client, appToken) {
  * @example
  * await pollDevice(gladys, client, appToken, device);
  */
-export async function pollDevice(gladys, client, appToken, device) {
+export async function pollDevice(gladys, client, appToken, rawDevice) {
   // The device external_id is prefixed with `ext:<selector>:`; parse the native
   // Freebox id ("freebox:{nodeId}...") to extract the node.
-  const [prefix, nodeId] = toNativeId(gladys, device.external_id).split(':');
+  const [prefix, nodeId] = toNativeId(gladys, rawDevice.external_id).split(':');
   if (prefix !== 'freebox') {
-    throw new Error(`Freebox device external_id is invalid: "${device.external_id}"`);
+    throw new Error(`Freebox device external_id is invalid: "${rawDevice.external_id}"`);
   }
+
+  // The core polls with a bare device: without its features there is nothing
+  // to read and nothing to publish.
+  const device = await withFeatures(gladys, rawDevice);
 
   if (nodeId === PLAYER.EXTERNAL_ID_SEGMENT) {
     await pollPlayer(gladys, client, appToken, device);
@@ -314,12 +367,16 @@ function findPositionEndpointId(gladys, device) {
  * @example
  * await setDeviceValue(gladys, client, appToken, device, feature, 1);
  */
-export async function setDeviceValue(gladys, client, appToken, device, feature, value) {
+export async function setDeviceValue(gladys, client, appToken, rawDevice, feature, value) {
   // external_ids are prefixed with `ext:<selector>:`; parse the native ids.
   const [prefix, nodeId, endpointId] = toNativeId(gladys, feature.external_id).split(':');
   if (prefix !== 'freebox') {
     throw new Error(`Freebox feature external_id is invalid: "${feature.external_id}"`);
   }
+
+  // The core commands with a bare device too, and a shutter open/close needs
+  // its position endpoint, which is read from the features.
+  const device = await withFeatures(gladys, rawDevice);
 
   if (nodeId === PLAYER.EXTERNAL_ID_SEGMENT) {
     await setPlayerValue(gladys, client, appToken, device, feature, value);
