@@ -44,6 +44,21 @@ export function toNativeId(gladys, externalId) {
 }
 
 /**
+ * Shorten an external_id for LOGGING only: the `ext:<selector>:` prefix is the
+ * same on every line of every log, so printing it in full only pushes the part
+ * that identifies the device off the right of the screen. Never use this to
+ * build a payload — the core wants the prefixed id.
+ * @param {object} gladys - The Gladys SDK instance.
+ * @param {string} externalId - Prefixed id from Gladys.
+ * @returns {string} Native id, e.g. "freebox:12:1".
+ * @example
+ * logger.info(`onPoll <- ${forLog(gladys, device.external_id)}`); // "freebox:12"
+ */
+export function forLog(gladys, externalId) {
+  return toNativeId(gladys, externalId);
+}
+
+/**
  * Return a copy of a Gladys device whose device/feature external_ids are
  * converted back to the native Freebox scheme, so the rest of the code can
  * parse them as "freebox:...".

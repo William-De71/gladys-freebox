@@ -15,7 +15,7 @@ import { convertDevice, convertPlayer, getPlayerBaseUrl } from './freebox/conver
 import { readValues, writeValues, COVER_STATE } from './freebox/deviceMapping.js';
 import { captureCameraImage } from './freebox/camera.js';
 import { PLAYER } from './freebox/constants.js';
-import { toPublishedDevice, toNativeId } from './externalId.js';
+import { toPublishedDevice, toNativeId, forLog } from './externalId.js';
 
 const logger = createLogger({ name: 'freebox-devices' });
 
@@ -235,7 +235,7 @@ export async function pollDevice(gladys, client, appToken, rawDevice) {
   if (orphans.length > 0) {
     logger.warn(
       `Freebox poll node ${nodeId}: ${orphans.length} feature(s) have no matching endpoint ` +
-        `on the box -> ${orphans.map((f) => `"${f.name}" (${f.external_id})`).join(', ')}`,
+        `on the box -> ${orphans.map((f) => `"${f.name}" (${forLog(gladys, f.external_id)})`).join(', ')}`,
     );
   }
 
@@ -335,7 +335,9 @@ async function pollPlayer(gladys, client, appToken, device) {
         pushState(DEVICE_FEATURE_TYPES.TELEVISION.VOLUME_MUTE, result.mute ? 1 : 0);
       }
     } catch (e) {
-      logger.debug(`Freebox: unable to get volume of player "${device.external_id}"`);
+      logger.debug(
+        `Freebox: unable to get volume of player "${forLog(gladys, device.external_id)}"`,
+      );
       logger.debug(e);
     }
   }
@@ -550,10 +552,11 @@ export function startCameraPush(gladys) {
           await gladys.publishCameraImage(camera.external_id, image);
           // Once a minute per camera: only interesting when chasing a problem.
           logger.debug(
-            `Freebox: camera image pushed for "${camera.external_id}" (${image.length} bytes)`,
+            `Freebox: camera image pushed for "${camera.name}" ` +
+              `(${forLog(gladys, camera.external_id)}, ${image.length} bytes)`,
           );
         } catch (e) {
-          logger.warn(`Freebox: camera push failed for "${camera.external_id}": ${e.message}`);
+          logger.warn(`Freebox: camera push failed for "${camera.name}": ${e.message}`);
           logger.debug(e);
         }
       }

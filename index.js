@@ -24,6 +24,7 @@ import {
   getDeviceImage,
   startCameraPush,
 } from './src/devices.js';
+import { forLog } from './src/externalId.js';
 
 const gladys = new GladysIntegration();
 const client = new FreeboxClient();
@@ -81,7 +82,7 @@ gladys.onScanRequest(async () => {
 
 // --- Command: the user acts on a controllable feature ------------------------
 gladys.onSetValue(async (device, feature, value) => {
-  logger.info(`onSetValue <- ${feature.external_id} = ${value}`);
+  logger.info(`onSetValue <- ${forLog(gladys, feature.external_id)} = ${value}`);
   const appToken = await getAppToken();
   if (!appToken) {
     throw new Error('Freebox is not paired');
@@ -93,7 +94,7 @@ gladys.onSetValue(async (device, feature, value) => {
 gladys.onPoll(async (device) => {
   // Fires for every device on every poll frequency: too noisy for info.
   logger.debug(
-    `onPoll <- ${device.external_id} ("${device.name}", model=${device.model}, ` +
+    `onPoll <- ${forLog(gladys, device.external_id)} ("${device.name}", model=${device.model}, ` +
       `${(device.features || []).length} feature(s))`,
   );
   const appToken = await getAppToken();
@@ -104,7 +105,7 @@ gladys.onPoll(async (device) => {
   try {
     await pollDevice(gladys, client, appToken, device);
   } catch (e) {
-    logger.error(`onPoll failed for ${device.external_id}: ${e.message}`);
+    logger.error(`onPoll failed for ${forLog(gladys, device.external_id)}: ${e.message}`);
     logger.debug(e);
   }
 });
@@ -114,19 +115,19 @@ gladys.onPoll(async (device) => {
 // These handlers confirm in the logs which devices went through.
 gladys.onDeviceCreated(async (device) => {
   logger.info(
-    `Device created in Gladys: "${device.name}" (${device.external_id}, ` +
+    `Device created in Gladys: "${device.name}" (${forLog(gladys, device.external_id)}, ` +
       `selector=${device.selector}, ${(device.features || []).length} feature(s))`,
   );
 });
 
 gladys.onDeviceUpdated(async (device) => {
-  logger.info(`Device updated in Gladys: "${device.name}" (${device.external_id})`);
+  logger.info(`Device updated in Gladys: "${device.name}" (${forLog(gladys, device.external_id)})`);
 });
 
 // --- Camera: Gladys needs a FRESH image of a camera device -------------------
 gladys.onGetImage(async (device) => {
   // Fires on every dashboard live view: too frequent for info.
-  logger.debug(`onGetImage <- ${device.external_id}`);
+  logger.debug(`onGetImage <- ${forLog(gladys, device.external_id)}`);
   return getDeviceImage(device);
 });
 

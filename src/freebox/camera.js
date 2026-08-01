@@ -69,7 +69,7 @@ export function captureCameraImage(device, { timeoutMs = 12000 } = {}) {
   const url = getCameraUrl(device);
   if (!url) {
     return Promise.reject(
-      new Error(`Freebox camera "${device.external_id}" has no CAMERA_URL param`),
+      new Error(`Freebox camera "${device.name || device.external_id}" has no CAMERA_URL param`),
     );
   }
 
@@ -102,7 +102,11 @@ export function captureCameraImage(device, { timeoutMs = 12000 } = {}) {
 
     const timer = setTimeout(() => {
       ffmpeg.kill('SIGKILL');
-      reject(new Error(`ffmpeg timed out after ${timeoutMs}ms capturing ${device.external_id}`));
+      reject(
+        new Error(
+          `ffmpeg timed out after ${timeoutMs}ms capturing ${device.name || device.external_id}`,
+        ),
+      );
     }, timeoutMs);
 
     ffmpeg.stdout.on('data', (chunk) => chunks.push(chunk));
