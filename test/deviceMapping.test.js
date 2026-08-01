@@ -7,15 +7,16 @@ import {
   BUTTON_STATUS,
 } from '../src/freebox/deviceMapping.js';
 
-// The Freebox `trigger` endpoint is true for the RESTING state, as its
-// `status_text_range` shows: ["Ouvert", "Fermé"] on an opening sensor (index 1
-// = true = "Fermé") and ["Mouvement détecté", "Aucun mouvement"] on a motion
-// one. Gladys uses the opposite convention: 1 means open / motion detected.
-test('readValues inverts the Freebox sensor polarity', () => {
-  assert.equal(readValues['opening-sensor'].binary(true), 0, 'true means closed');
-  assert.equal(readValues['opening-sensor'].binary(false), 1, 'false means open');
-  assert.equal(readValues['motion-sensor'].binary(true), 0, 'true means no motion');
-  assert.equal(readValues['motion-sensor'].binary(false), 1, 'false means motion');
+// The Freebox `status_text_range` is indexed BY VALUE, so `true` is always the
+// second label: "Fermé" on an opening sensor, "Aucun mouvement" on a motion
+// one. Gladys agrees on the first (1 = closed, rendered `lock` by
+// IconBinaryDeviceValue) but not on the second (1 = motion detected, per
+// MotionSensorDeviceValue), so only the motion sensor is inverted.
+test('readValues matches each Gladys sensor convention', () => {
+  assert.equal(readValues['opening-sensor'].binary(true), 1, 'true means closed, as in Gladys');
+  assert.equal(readValues['opening-sensor'].binary(false), 0, 'false means open, as in Gladys');
+  assert.equal(readValues['motion-sensor'].binary(true), 0, 'true means no motion, inverted');
+  assert.equal(readValues['motion-sensor'].binary(false), 1, 'false means motion, inverted');
 });
 
 // The Freebox answers `value: null` on endpoints it has never refreshed. A

@@ -142,19 +142,22 @@ export const writeValues = {
 
 export const readValues = {
   [DEVICE_FEATURE_CATEGORIES.OPENING_SENSOR]: {
-    // The Freebox `trigger` of an opening sensor is true when CLOSED
-    // (`status_text_range: ["Ouvert", "Fermé"]`), while Gladys expects
-    // 1 = open. Publish nothing when the box has no value yet.
+    // Both sides agree here, so the value goes through untouched: the Freebox
+    // `status_text_range: ["Ouvert", "Fermé"]` is indexed BY VALUE (false =
+    // "Ouvert", true = "Fermé"), and Gladys renders 0 as `unlock` and 1 as
+    // `lock` (front IconBinaryDeviceValue). true = closed on both sides.
     [DEVICE_FEATURE_TYPES.SENSOR.BINARY]: (valueFromDevice) => {
       if (typeof valueFromDevice !== 'boolean') {
         return undefined;
       }
-      return valueFromDevice ? 0 : 1;
+      return valueFromDevice ? 1 : 0;
     },
   },
   [DEVICE_FEATURE_CATEGORIES.MOTION_SENSOR]: {
-    // Same inversion: `status_text_range: ["Mouvement détecté", "Aucun
-    // mouvement"]`, so true means "no motion" and Gladys expects 1 = motion.
+    // Here the two conventions DO differ, so the value is inverted: the
+    // Freebox `status_text_range: ["Mouvement détecté", "Aucun mouvement"]`
+    // makes false = motion and true = idle, while Gladys shows the "motion
+    // detected" badge on 1 (front MotionSensorDeviceValue).
     [DEVICE_FEATURE_TYPES.SENSOR.BINARY]: (valueFromDevice) => {
       if (typeof valueFromDevice !== 'boolean') {
         return undefined;
