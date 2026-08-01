@@ -251,12 +251,21 @@ export class FreeboxClient {
     // The shape of this answer is the thing to check first when no value ever
     // reaches the dashboard: a non-array `result`, an error payload or an empty
     // list all end up as "no recent value" downstream, for different reasons.
-    logger.info(
+    logger.debug(
       `Freebox /home/tileset/${nodeId} -> HTTP ${status} success=${data && data.success} ` +
         `result=${Array.isArray(data && data.result) ? `${data.result.length} tile(s)` : typeof (data && data.result)}` +
         `${data && data.error_code ? ` error_code=${data.error_code} msg=${data.msg}` : ''}`,
     );
     logger.debug(`Freebox /home/tileset/${nodeId} raw payload: ${JSON.stringify(data)}`);
+
+    // An answer carrying no tile means the poll below has nothing to read: it
+    // is not normal for a node the user created, so say it out loud.
+    if (tiles.length === 0) {
+      logger.warn(
+        `Freebox /home/tileset/${nodeId} returned no tile ` +
+          `(success=${data && data.success}${data && data.error_code ? `, error_code=${data.error_code}` : ''})`,
+      );
+    }
 
     // A node can expose several tiles (that is how /home/tileset/all groups
     // them), each carrying part of the endpoints. Reading only the first one
@@ -290,7 +299,7 @@ export class FreeboxClient {
           `${data.msg || 'unknown error'} (error_code=${data.error_code || '?'})`,
       );
     }
-    logger.info(`Freebox write ${nodeId}/${endpointId} accepted (HTTP ${status})`);
+    logger.debug(`Freebox write ${nodeId}/${endpointId} accepted (HTTP ${status})`);
   }
 
   /**

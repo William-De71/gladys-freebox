@@ -91,7 +91,8 @@ gladys.onSetValue(async (device, feature, value) => {
 
 // --- Polling: Gladys asks to refresh a device --------------------------------
 gladys.onPoll(async (device) => {
-  logger.info(
+  // Fires for every device on every poll frequency: too noisy for info.
+  logger.debug(
     `onPoll <- ${device.external_id} ("${device.name}", model=${device.model}, ` +
       `${(device.features || []).length} feature(s))`,
   );
@@ -124,7 +125,8 @@ gladys.onDeviceUpdated(async (device) => {
 
 // --- Camera: Gladys needs a FRESH image of a camera device -------------------
 gladys.onGetImage(async (device) => {
-  logger.info(`onGetImage <- ${device.external_id}`);
+  // Fires on every dashboard live view: too frequent for info.
+  logger.debug(`onGetImage <- ${device.external_id}`);
   return getDeviceImage(device);
 });
 

@@ -183,7 +183,16 @@ export function convertDevice(freeboxDevice) {
         { name: 'CAMERA_ROTATION', value: '0' },
       ];
       device.poll_frequency = POLL_EVERY_MINUTE;
-      logger.info(`Freebox camera "${name}" detected with stream URL: ${camFunc.value}`);
+      // The stream URL embeds the camera credentials: log the host only, so a
+      // log pasted in a bug report does not leak them.
+      let streamHost = '?';
+      try {
+        streamHost = new URL(camFunc.value).host;
+      } catch {
+        // Not a parseable URL: keep the placeholder rather than print it raw.
+      }
+      logger.info(`Freebox camera "${name}" detected, stream on ${streamHost}`);
+      logger.debug(`Freebox camera "${name}" stream URL: ${camFunc.value}`);
     }
   }
 
@@ -329,7 +338,7 @@ export function convertPlayer(freeboxPlayer) {
     max: feature.max,
   }));
 
-  logger.info(
+  logger.debug(
     `Freebox player "${name}" (id=${id}, api=${apiVersionParam}) converted with ` +
       `${features.length} feature(s): ${features.map((f) => f.selector).join(', ')}`,
   );
