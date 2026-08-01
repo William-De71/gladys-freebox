@@ -60,13 +60,31 @@ test('loadNodeValues returns an empty list when the tile carries no data', async
   assert.deepEqual(values, []);
 });
 
-test('loadNodeValues returns the data of the first tile', async () => {
+test('loadNodeValues returns the data of the tile', async () => {
   const client = clientAnswering({
     success: true,
     result: [{ node_id: 12, data: [{ ep_id: 1, value: 42 }] }],
   });
   const values = await client.loadNodeValues('token', 12);
   assert.deepEqual(values, [{ ep_id: 1, value: 42 }]);
+});
+
+// A node can expose several tiles, each carrying part of the endpoints:
+// reading only the first one silently drops the other values.
+test('loadNodeValues merges the endpoints of every tile of the node', async () => {
+  const client = clientAnswering({
+    success: true,
+    result: [
+      { node_id: 12, data: [{ ep_id: 1, value: 42 }] },
+      { node_id: 12, data: [{ ep_id: 3, value: 85 }] },
+      { node_id: 12, data: null },
+    ],
+  });
+  const values = await client.loadNodeValues('token', 12);
+  assert.deepEqual(values, [
+    { ep_id: 1, value: 42 },
+    { ep_id: 3, value: 85 },
+  ]);
 });
 
 test('loadPlayers returns an empty list when result is not an array', async () => {

@@ -243,9 +243,25 @@ export class FreeboxClient {
    * const data = await client.loadNodeValues(appToken, 12);
    */
   async loadNodeValues(appToken, nodeId) {
-    const { data } = await this.authRequest(appToken, { path: `/home/tileset/${nodeId}` });
-    const [tile] = asArray(data && data.result);
-    return asArray(tile && tile.data);
+    const { status, data } = await this.authRequest(appToken, {
+      path: `/home/tileset/${nodeId}`,
+    });
+    const tiles = asArray(data && data.result);
+
+    // The shape of this answer is the thing to check first when no value ever
+    // reaches the dashboard: a non-array `result`, an error payload or an empty
+    // list all end up as "no recent value" downstream, for different reasons.
+    logger.info(
+      `Freebox /home/tileset/${nodeId} -> HTTP ${status} success=${data && data.success} ` +
+        `result=${Array.isArray(data && data.result) ? `${data.result.length} tile(s)` : typeof (data && data.result)}` +
+        `${data && data.error_code ? ` error_code=${data.error_code} msg=${data.msg}` : ''}`,
+    );
+    logger.debug(`Freebox /home/tileset/${nodeId} raw payload: ${JSON.stringify(data)}`);
+
+    // A node can expose several tiles (that is how /home/tileset/all groups
+    // them), each carrying part of the endpoints. Reading only the first one
+    // would silently drop the values of the others.
+    return tiles.flatMap((tile) => asArray(tile && tile.data));
   }
 
   /**
@@ -259,11 +275,22 @@ export class FreeboxClient {
    * await client.setEndpointValue(appToken, 12, 1, 1);
    */
   async setEndpointValue(appToken, nodeId, endpointId, value) {
-    await this.authRequest(appToken, {
+    const { status, data } = await this.authRequest(appToken, {
       method: 'PUT',
       path: `/home/endpoints/${nodeId}/${endpointId}`,
       data: { value },
     });
+
+    // The Freebox answers 200 with `success: false` when it refuses a write
+    // (wrong value type on a `void` endpoint, read-only endpoint...). Staying
+    // silent here makes a rejected command look like a successful one.
+    if (data && data.success === false) {
+      throw new Error(
+        `Freebox refused the write on ${nodeId}/${endpointId}: ` +
+          `${data.msg || 'unknown error'} (error_code=${data.error_code || '?'})`,
+      );
+    }
+    logger.info(`Freebox write ${nodeId}/${endpointId} accepted (HTTP ${status})`);
   }
 
   /**

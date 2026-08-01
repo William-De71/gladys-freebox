@@ -91,7 +91,10 @@ gladys.onSetValue(async (device, feature, value) => {
 
 // --- Polling: Gladys asks to refresh a device --------------------------------
 gladys.onPoll(async (device) => {
-  logger.info(`onPoll <- ${device.external_id}`);
+  logger.info(
+    `onPoll <- ${device.external_id} ("${device.name}", model=${device.model}, ` +
+      `${(device.features || []).length} feature(s))`,
+  );
   const appToken = await getAppToken();
   if (!appToken) {
     logger.warn('onPoll ignored: Freebox not paired');

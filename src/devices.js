@@ -149,6 +149,30 @@ export async function pollDevice(gladys, client, appToken, device) {
     valuesByEndpoint[endpoint.ep_id] = endpoint.value;
   });
 
+  // What the box answered, endpoint by endpoint, with the type of each value:
+  // a `null` here means the Freebox itself has no value, which is a different
+  // problem from an endpoint we failed to read.
+  logger.info(
+    `Freebox poll node ${nodeId}: ${data.length} endpoint(s) read from the box -> ` +
+      data
+        .map((e) => `ep${e.ep_id}(${e.name || '?'})=${JSON.stringify(e.value)}:${typeof e.value}`)
+        .join(' '),
+  );
+
+  // What Gladys asks us to fill in. If a feature's endpoint is missing from the
+  // list above, its external_id and the box disagree — that is the mismatch to
+  // look for when everything reads "no recent value".
+  logger.info(
+    `Freebox poll node ${nodeId}: ${(device.features || []).length} feature(s) on the device -> ` +
+      (device.features || [])
+        .map((f) => {
+          const [, , ep] = toNativeId(gladys, f.external_id).split(':');
+          const known = Object.prototype.hasOwnProperty.call(valuesByEndpoint, ep);
+          return `ep${ep}("${f.name}",${f.category}/${f.type}${known ? '' : ',NO-VALUE-FROM-BOX'})`;
+        })
+        .join(' '),
+  );
+
   const states = [];
   (device.features || []).forEach((feature) => {
     // Camera image values are URLs, handled through the image channel above.
@@ -160,9 +184,16 @@ export async function pollDevice(gladys, client, appToken, device) {
 
     const reader = readValues[feature.category] && readValues[feature.category][feature.type];
     if (!reader) {
+      logger.info(
+        `Freebox poll: no reader for "${feature.name}" (${feature.category}/${feature.type})`,
+      );
       return;
     }
     const transformed = reader(rawValue);
+    logger.info(
+      `Freebox poll: "${feature.name}" ep=${epId} raw=${JSON.stringify(rawValue)} ` +
+        `(${feature.category}/${feature.type}) -> ${JSON.stringify(transformed)}`,
+    );
     if (transformed === null || transformed === undefined) {
       return;
     }
@@ -177,7 +208,21 @@ export async function pollDevice(gladys, client, appToken, device) {
   });
 
   if (states.length > 0) {
-    await gladys.publishStates(states);
+    try {
+      await gladys.publishStates(states);
+      logger.info(`Freebox poll node ${nodeId}: ${states.length} state(s) published`);
+    } catch (e) {
+      // A rejected batch is the difference between "the device is silent" and
+      // "the core refused our payload": surface the reason instead of letting
+      // the caller log a generic poll failure.
+      logger.error(
+        `Freebox poll node ${nodeId}: publishing ${states.length} state(s) failed ` +
+          `[${e.status || '?'} ${e.code || '?'}]: ${e.message} — payload ${JSON.stringify(states)}`,
+      );
+      throw e;
+    }
+  } else {
+    logger.info(`Freebox poll node ${nodeId}: nothing to publish`);
   }
 }
 
@@ -329,7 +374,11 @@ export async function setDeviceValue(gladys, client, appToken, device, feature, 
     valueToDevice = null;
   }
 
-  logger.debug(`Freebox set ${nodeId}/${endpointIdToDevice} = ${valueToDevice}`);
+  logger.info(
+    `Freebox set node ${nodeId}: "${feature.name}" (${feature.category}/${feature.type}, ` +
+      `model=${device.model}) value=${JSON.stringify(value)} -> ` +
+      `PUT /home/endpoints/${nodeId}/${endpointIdToDevice} ${JSON.stringify({ value: valueToDevice })}`,
+  );
   await client.setEndpointValue(appToken, nodeId, endpointIdToDevice, valueToDevice);
 }
 
