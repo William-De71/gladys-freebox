@@ -13,6 +13,39 @@ const logger = createLogger({ name: 'freebox-camera' });
 
 const MAX_IMAGE_BYTES = 150 * 1024;
 
+// The Freebox sometimes advertises the camera stream on a placeholder host
+// ("0.0.0.0", "127.0.0.1") instead of its LAN address — typically when the
+// camera has no DHCP lease yet. ffmpeg then fails with "Connection refused" on
+// every capture, so fall back to the Freebox itself, which proxies the stream.
+const UNUSABLE_HOSTS = ['0.0.0.0', '127.0.0.1', 'localhost', '::'];
+const FREEBOX_FALLBACK_HOST = 'mafreebox.freebox.fr';
+
+/**
+ * Replace a placeholder host in a camera stream URL, keeping credentials,
+ * port and path intact.
+ * @param {string} url - The stream URL advertised by the Freebox.
+ * @returns {string} A usable URL.
+ * @example
+ * normalizeCameraUrl('http://user:pass@0.0.0.0/img/stream.m3u8');
+ */
+export function normalizeCameraUrl(url) {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    // Not a parseable URL: hand it to ffmpeg untouched rather than guessing.
+    return url;
+  }
+  if (!UNUSABLE_HOSTS.includes(parsed.hostname)) {
+    return url;
+  }
+  parsed.hostname = FREEBOX_FALLBACK_HOST;
+  logger.warn(
+    `Freebox camera stream advertised on an unusable host, falling back to ${FREEBOX_FALLBACK_HOST}`,
+  );
+  return parsed.toString();
+}
+
 /**
  * Read the camera stream URL from a Gladys device.
  * @param {object} device - Gladys camera device.
@@ -20,7 +53,7 @@ const MAX_IMAGE_BYTES = 150 * 1024;
  */
 function getCameraUrl(device) {
   const param = (device.params || []).find((p) => p.name === 'CAMERA_URL');
-  return param ? param.value : null;
+  return param ? normalizeCameraUrl(param.value) : null;
 }
 
 /**

@@ -163,9 +163,17 @@ export async function pollDevice(gladys, client, appToken, device) {
       return;
     }
     const transformed = reader(rawValue);
-    if (transformed !== null && transformed !== undefined) {
-      states.push({ device_feature_external_id: feature.external_id, state: transformed });
+    if (transformed === null || transformed === undefined) {
+      return;
     }
+    // Text features (the alarm panel state) travel in `text`, not `state`:
+    // `state` is a numeric column and a string in the batch makes the core
+    // reject EVERY state of the request, not just this one.
+    if (typeof transformed === 'string') {
+      states.push({ device_feature_external_id: feature.external_id, text: transformed });
+      return;
+    }
+    states.push({ device_feature_external_id: feature.external_id, state: transformed });
   });
 
   if (states.length > 0) {
@@ -227,6 +235,29 @@ async function pollPlayer(gladys, client, appToken, device) {
 }
 
 /**
+ * Find the Freebox endpoint id carrying the shutter position of a device.
+ * Read from the device features rather than hard-coded, because the endpoint
+ * number depends on the shutter model.
+ * @param {object} gladys - The Gladys SDK instance.
+ * @param {object} device - The Gladys shutter device.
+ * @returns {string|undefined} The endpoint id, or undefined when absent.
+ * @example
+ * findPositionEndpointId(gladys, device); // '3'
+ */
+function findPositionEndpointId(gladys, device) {
+  const positionFeature = (device.features || []).find(
+    (f) =>
+      f.category === DEVICE_FEATURE_CATEGORIES.SHUTTER &&
+      f.type === DEVICE_FEATURE_TYPES.SHUTTER.POSITION,
+  );
+  if (!positionFeature) {
+    return undefined;
+  }
+  const [, , epId] = toNativeId(gladys, positionFeature.external_id).split(':');
+  return epId;
+}
+
+/**
  * Apply a user command on a Gladys device feature.
  * @param {object} gladys - The Gladys SDK instance.
  * @param {import('./freebox/FreeboxClient.js').FreeboxClient} client - Freebox client.
@@ -256,44 +287,46 @@ export async function setDeviceValue(gladys, client, appToken, device, feature, 
   let endpointIdToDevice = endpointId;
   let valueToDevice = transformedValue;
 
-  // The Freebox shutter/store models map the Gladys STATE/POSITION features to
-  // different endpoints and values, depending on the physical device model.
-  switch (device.model) {
-    case 'alarm_control':
-      endpointIdToDevice = endpointId;
-      valueToDevice = null;
-      break;
-    case 'store':
-      if (endpointId === '1') {
+  // A Gladys SHUTTER.STATE command (open / stop / close) has to be translated
+  // to whatever the physical Freebox model exposes. `store_slider` shutters —
+  // the ones the Freebox reports today — only expose two endpoints: the
+  // "Consigne d'ouverture" percentage and a `stop` button, with NO dedicated
+  // open/close endpoint. Open and close are therefore writes of 0 / 100 % on
+  // the position endpoint, and only "stop" targets the button itself.
+  if (feature.type === DEVICE_FEATURE_TYPES.SHUTTER.STATE) {
+    const positionEndpointId = findPositionEndpointId(gladys, device);
+
+    switch (device.model) {
+      // Legacy shutters expose one endpoint per direction, next to the stop one.
+      case 'store':
         valueToDevice = null;
         if (transformedValue === COVER_STATE.CLOSE) {
           endpointIdToDevice = 2;
         } else if (transformedValue === COVER_STATE.OPEN) {
           endpointIdToDevice = 0;
-        } else if (transformedValue === COVER_STATE.STOP) {
-          endpointIdToDevice = endpointId;
         }
-      }
-      break;
-    case 'store_slider':
-      endpointIdToDevice = endpointId;
-      valueToDevice = transformedValue;
-      if (endpointId === '1') {
-        if (transformedValue === COVER_STATE.CLOSE) {
-          endpointIdToDevice = 3;
-          valueToDevice = 100;
-        } else if (transformedValue === COVER_STATE.OPEN) {
-          endpointIdToDevice = 3;
-          valueToDevice = 0;
-        } else if (transformedValue === COVER_STATE.STOP) {
-          endpointIdToDevice = endpointId;
+        break;
+      case 'store_slider':
+      default:
+        if (transformedValue === COVER_STATE.CLOSE || transformedValue === COVER_STATE.OPEN) {
+          if (positionEndpointId === undefined) {
+            throw new Error(
+              `Freebox shutter "${device.external_id}" has no position endpoint to open/close`,
+            );
+          }
+          endpointIdToDevice = positionEndpointId;
+          // Freebox "Consigne d'ouverture" is reversed vs Gladys: 100 = closed.
+          valueToDevice = transformedValue === COVER_STATE.CLOSE ? 100 : 0;
+        } else {
+          // STOP: press the `void` stop button, which takes no payload.
           valueToDevice = null;
         }
-      }
-      break;
-    default:
-      endpointIdToDevice = endpointId;
-      valueToDevice = transformedValue;
+        break;
+    }
+  } else if (feature.type === DEVICE_FEATURE_TYPES.BUTTON.PUSH) {
+    // Alarm commands are `void` endpoints: writing to them triggers the action,
+    // and the Freebox rejects a payload.
+    valueToDevice = null;
   }
 
   logger.debug(`Freebox set ${nodeId}/${endpointIdToDevice} = ${valueToDevice}`);

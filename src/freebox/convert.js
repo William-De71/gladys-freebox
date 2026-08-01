@@ -14,10 +14,26 @@ import {
   DEVICE_FEATURE_TYPES,
   DEVICE_FEATURE_UNITS,
 } from '@gladysassistant/integration-sdk';
-import { mappings, MOTION, OPENING } from './deviceMapping.js';
+import {
+  mappings,
+  MOTION,
+  OPENING,
+  POSITION,
+  BATTERY,
+  CONTROL,
+  CAMERA,
+  PUSHED,
+  ALARM1,
+  ALARM2,
+  ALARM_OFF,
+  ALARM_SKIP,
+} from './deviceMapping.js';
 import { PLAYER } from './constants.js';
 
 const logger = createLogger({ name: 'freebox-convert' });
+
+// Write-only `void` endpoints of the alarm control panel.
+const ALARM_COMMANDS = [ALARM1, ALARM2, ALARM_OFF, ALARM_SKIP];
 
 // Poll frequencies, in milliseconds (the core validates poll_frequency against
 // a fixed list: 60000, 30000, 15000, 10000, 2000, 1000).
@@ -35,10 +51,10 @@ const POLL_EVERY_MINUTE = 60000;
 export function convertFeature(freeboxFunction, externalId) {
   const { ep_id: epId, label, name } = freeboxFunction;
 
-  let readOnly = false;
-  if (freeboxFunction.ui && freeboxFunction.ui.access === 'r') {
-    readOnly = true;
-  }
+  // `access` is 'r' (sensor), 'w' (command button) or 'rw' (both). Endpoints
+  // with no `ui` block are internal Freebox signals, never user-facing.
+  const access = (freeboxFunction.ui && freeboxFunction.ui.access) || 'r';
+  const readOnly = access === 'r';
 
   // The generic "trigger" function covers both motion and opening sensors;
   // disambiguate on the French label the Freebox exposes.
@@ -63,8 +79,13 @@ export function convertFeature(freeboxFunction, externalId) {
   // so publish an explicit selector built from the node and endpoint ids.
   const nodeId = externalId.split(':')[1];
 
+  // The name is what the dashboard shows next to the device ("Volet bureau
+  // (Position du volet)"). The Freebox label is the human wording the user
+  // already sees in Freebox OS, so prefer it over the technical function name.
+  const displayName = label || name;
+
   const feature = {
-    name,
+    name: displayName,
     external_id: `${externalId}:${epId}`,
     selector: `freebox-${nodeId}-${epId}-${name}`,
     read_only: readOnly,
@@ -75,11 +96,30 @@ export function convertFeature(freeboxFunction, externalId) {
     ...categoryAndType,
   };
 
-  if (mappingKey === 'position' || mappingKey === 'battery_warning') {
+  if (mappingKey === POSITION || mappingKey === BATTERY) {
     feature.max = 100;
   }
 
-  if (mappingKey === 'cam') {
+  // Shutter STATE and the alarm commands are `void` write-only endpoints: the
+  // Freebox exposes no value to read back, so history would only ever record
+  // the command we just sent.
+  if (mappingKey === CONTROL || ALARM_COMMANDS.includes(mappingKey)) {
+    feature.keep_history = false;
+  }
+
+  // Gladys renders a SHUTTER.STATE feature as the open/pause/close buttons; it
+  // spans -1 (close) to 1 (open).
+  if (mappingKey === CONTROL) {
+    feature.min = -1;
+  }
+
+  // The keyfob reports which button was pressed (1..3); a click is an event, so
+  // the dashboard shows the last press rather than a persistent state.
+  if (mappingKey === PUSHED) {
+    feature.max = 6;
+  }
+
+  if (mappingKey === CAMERA) {
     feature.max = 0;
     feature.read_only = true;
     feature.keep_history = false;
@@ -107,14 +147,17 @@ export function convertDevice(freeboxDevice) {
 
   const model = action === undefined ? type : action;
 
-  // Group functions by name: status and command share the same feature.
-  const groups = {};
-  (data || []).forEach((func) => {
-    groups[func.name] = func;
-  });
-
-  const features = Object.values(groups)
-    .map((group) => convertFeature(group, externalId))
+  // Every endpoint is a candidate feature, keyed by ep_id: two endpoints of the
+  // same node can share a function name (the sensors expose an internal
+  // `alarm1`/`alarm2` signal alongside the panel's `alarm1`/`alarm2` buttons),
+  // and grouping by name would silently drop one of them.
+  //
+  // Endpoints without a `ui` block are internal Freebox signals, not meant to
+  // be shown: that is exactly how the box distinguishes the sensors' internal
+  // `alarm1` (ui: null) from the alarm panel's `alarm1` button.
+  const features = (data || [])
+    .filter((func) => func.ui)
+    .map((func) => convertFeature(func, externalId))
     .filter(Boolean);
 
   // Same UNIQUE selector constraint as the features: a device named like an
