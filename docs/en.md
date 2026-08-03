@@ -21,6 +21,8 @@ This integration lets you control your **Freebox** from Gladys Assistant, direct
 3. Walk to your Freebox Server: its LCD screen shows an authorization request. Press the **right arrow** to confirm.
 4. The pairing is remembered: you only need to do it once.
 
+⏱️ **You have about 55 seconds** to press the right arrow on the LCD screen. After that delay, pairing fails with the message "authorization was not confirmed on the LCD screen": just run the **"Pair with the Freebox"** action again. Make sure you are standing next to your Freebox **before** clicking the button.
+
 ## Permissions to enable (important)
 
 After pairing, open your Freebox settings:

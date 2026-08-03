@@ -21,6 +21,8 @@ Cette intégration permet de contrôler votre **Freebox** depuis Gladys Assistan
 3. Rendez-vous devant votre Freebox Server : l'écran LCD affiche une demande d'autorisation. Appuyez sur la **flèche de droite** pour valider.
 4. L'appairage est mémorisé : vous n'avez à le faire qu'une seule fois.
 
+⏱️ **Vous avez environ 55 secondes** pour appuyer sur la flèche de droite du LCD. Passé ce délai, l'appairage échoue avec le message « l'autorisation n'a pas été confirmée sur l'écran LCD » : relancez simplement l'action **« Appairer avec la Freebox »**. Pensez à être à côté de votre Freebox **avant** de cliquer sur le bouton.
+
 ## Permissions à cocher (important)
 
 Après l'appairage, ouvrez les réglages de votre Freebox :

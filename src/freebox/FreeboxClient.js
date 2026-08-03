@@ -96,15 +96,28 @@ export class FreeboxClient {
    * @example
    * await client.waitForAuthorization(42);
    */
-  async waitForAuthorization(trackId, { timeoutMs = 55000 } = {}) {
+  async waitForAuthorization(trackId, { timeoutMs = 55000, pollIntervalMs = 2000 } = {}) {
     await this.ensureDiscovered();
     const deadline = Date.now() + timeoutMs;
 
     // Poll every 2 seconds, like the Freebox recommends.
     for (;;) {
-      const { data } = await freeboxRequest({
-        url: `${this.baseApiUrl}/login/authorize/${trackId}`,
-      });
+      // A single failed poll (request timeout, transient DNS or network error)
+      // must not abort the pairing: the user may still be walking to the box.
+      // Keep retrying until `deadline`, and only then report the failure.
+      let data;
+      try {
+        ({ data } = await this.pollAuthorization(trackId));
+      } catch (e) {
+        if (Date.now() > deadline) {
+          throw new Error(`Freebox pairing failed while polling the authorization: ${e.message}`, {
+            cause: e,
+          });
+        }
+        logger.warn(`Freebox authorization poll failed, retrying: ${e.message}`);
+        await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+        continue;
+      }
       const status = data && data.result && data.result.status;
 
       if (status === 'granted') {
@@ -117,12 +130,24 @@ export class FreeboxClient {
             'Freebox pairing timed out: authorization was not confirmed on the LCD screen',
           );
         }
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
         continue;
       }
       // 'timeout' | 'denied' | 'unknown'
       throw new Error(`Freebox pairing failed with status "${status}"`);
     }
+  }
+
+  /**
+   * Query the current pairing status once. Split out of waitForAuthorization()
+   * so the polling loop can be exercised without any network.
+   * @param {number} trackId - Track id returned by requestAuthorization().
+   * @returns {Promise<{ status: number, data: any }>} The Freebox answer.
+   * @example
+   * const { data } = await client.pollAuthorization(42);
+   */
+  async pollAuthorization(trackId) {
+    return freeboxRequest({ url: `${this.baseApiUrl}/login/authorize/${trackId}` });
   }
 
   /**

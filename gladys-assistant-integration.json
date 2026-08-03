@@ -20,8 +20,8 @@
         "fr": "Connectez votre Freebox"
       },
       "description": {
-        "en": "This integration talks to your Freebox Server over your local network. To pair it, click \"Pair with the Freebox\" below, then physically confirm the authorization on your Freebox Server LCD screen (press the right arrow on the box). The pairing is done only once.",
-        "fr": "Cette intégration communique avec votre Freebox Server sur votre réseau local. Pour l'appairer, cliquez sur « Appairer avec la Freebox » ci-dessous, puis confirmez physiquement l'autorisation sur l'écran LCD de votre Freebox Server (flèche de droite sur la box). L'appairage n'est à faire qu'une seule fois."
+        "en": "This integration talks to your Freebox Server over your local network. To pair it, click \"Pair with the Freebox\" below, then physically confirm the authorization on your Freebox Server LCD screen (press the right arrow on the box). You have about 55 seconds to confirm, so stand next to your Freebox before clicking; if the delay expires, just run the action again. The pairing is done only once.",
+        "fr": "Cette intégration communique avec votre Freebox Server sur votre réseau local. Pour l'appairer, cliquez sur « Appairer avec la Freebox » ci-dessous, puis confirmez physiquement l'autorisation sur l'écran LCD de votre Freebox Server (flèche de droite sur la box). Vous disposez d'environ 55 secondes pour confirmer : placez-vous près de votre Freebox avant de cliquer ; si le délai expire, relancez simplement l'action. L'appairage n'est à faire qu'une seule fois."
       },
       "links": [
         {
