@@ -200,12 +200,14 @@ export function convertDevice(freeboxDevice) {
 }
 
 // Features exposed for a Freebox Player, all under the "television" category.
-// "power" is read-only: the player API only reports the power state.
+// "power" is writable through the remote control key, which is a TOGGLE: the
+// command is only sent when the current power state differs from the requested
+// one (see setPlayerValue), so the feature behaves as a regular on/off switch.
 const PLAYER_FEATURES = [
   {
     name: 'Power',
     type: DEVICE_FEATURE_TYPES.TELEVISION.BINARY,
-    read_only: true,
+    read_only: false,
     keep_history: true,
     min: 0,
     max: 1,

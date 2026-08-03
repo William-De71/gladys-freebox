@@ -284,3 +284,58 @@ test('polling a device with no resolvable feature stays silent', async () => {
 
   assert.equal(target.published.length, 0);
 });
+
+// The Freebox player has no on/off endpoint: power goes through the remote
+// control "power" key, which toggles. Asking for a state the player is already
+// in must NOT send the key, otherwise "turn the TV on" in a scene switches off
+// a player that was already running.
+const playerDevice = {
+  external_id: ext('freebox:player:1'),
+  model: 'player',
+  params: [{ name: 'PLAYER_API_VERSION', value: 'v7' }],
+  features: [
+    { external_id: ext('freebox:player:1:binary'), category: 'television', type: 'binary' },
+  ],
+};
+const playerPowerFeature = playerDevice.features[0];
+
+/** A client recording the player HTTP calls, answering a fixed power state. */
+function fakePlayerClient(powerState) {
+  const calls = [];
+  return {
+    calls,
+    playerRequest: async (appToken, options) => {
+      calls.push(options);
+      return { data: { result: { power_state: powerState } } };
+    },
+  };
+}
+
+test('player power sends the remote key only when the state must change', async () => {
+  const client = fakePlayerClient('standby');
+
+  await setDeviceValue(gladys, client, 'token', playerDevice, playerPowerFeature, 1);
+
+  assert.deepEqual(client.calls[0], { path: '/player/1/api/v7/status/' });
+  assert.deepEqual(client.calls[1], {
+    method: 'POST',
+    path: '/player/1/api/v7/control/remote',
+    data: { key: 'power' },
+  });
+});
+
+test('player power is a no-op when the player is already in the wanted state', async () => {
+  const client = fakePlayerClient('running');
+
+  await setDeviceValue(gladys, client, 'token', playerDevice, playerPowerFeature, 1);
+
+  assert.equal(client.calls.length, 1, 'only the status read, no toggle');
+
+  await setDeviceValue(gladys, client, 'token', playerDevice, playerPowerFeature, 0);
+
+  assert.deepEqual(client.calls[2], {
+    method: 'POST',
+    path: '/player/1/api/v7/control/remote',
+    data: { key: 'power' },
+  });
+});

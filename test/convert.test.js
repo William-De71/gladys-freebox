@@ -213,7 +213,7 @@ test('convertPlayer builds a television device with media features', () => {
   const apiParam = device.params.find((p) => p.name === 'PLAYER_API_VERSION');
   assert.equal(apiParam.value, 'v7');
   const power = device.features.find((f) => f.type === 'binary');
-  assert.equal(power.read_only, true);
+  assert.equal(power.read_only, false, 'power is commandable through the remote control key');
   const volume = device.features.find((f) => f.type === 'volume');
   assert.equal(volume.max, 100);
 });

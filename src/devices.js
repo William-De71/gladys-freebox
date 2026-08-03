@@ -477,6 +477,30 @@ async function setPlayerValue(gladys, client, appToken, device, feature, value) 
   });
   logger.debug(`Freebox player: set "${feature.type}" = ${value}`);
 
+  // The player API has no on/off endpoint: powering it relies on the remote
+  // control "power" key, which TOGGLES the state. Sending it blindly would turn
+  // the player off when a scene asks to turn it on and it is already running,
+  // so read the current state first and only send the key when it differs.
+  if (feature.type === DEVICE_FEATURE_TYPES.TELEVISION.BINARY) {
+    const statusResponse = await client.playerRequest(appToken, {
+      path: `${playerBaseUrl}/status/`,
+    });
+    const powerState =
+      statusResponse.data && statusResponse.data.result && statusResponse.data.result.power_state;
+    const running = powerState === 'running';
+    const wanted = Number(value) === 1;
+    if (running === wanted) {
+      logger.debug(`Freebox player: already ${wanted ? 'on' : 'off'}, power key not sent`);
+      return;
+    }
+    await client.playerRequest(appToken, {
+      method: 'POST',
+      path: `${playerBaseUrl}/control/remote`,
+      data: { key: 'power' },
+    });
+    return;
+  }
+
   if (feature.type === DEVICE_FEATURE_TYPES.TELEVISION.VOLUME) {
     await client.playerRequest(appToken, {
       method: 'PUT',
