@@ -19,15 +19,51 @@ import { toPublishedDevice, toNativeId, forLog } from './externalId.js';
 
 const logger = createLogger({ name: 'freebox-devices' });
 
-// Gladys television feature types -> Freebox player media commands.
+// Gladys television feature types -> Freebox player media commands, sent to
+// `/control/mediactrl`. These act on the MEDIA currently played: "next" is the
+// next track/chapter, never the next TV channel (zapping goes through `open`).
+//
+// Only the commands listed by the official documentation are used here. Note
+// there is NO separate `play` / `pause`: the API exposes the single
+// `play_pause` toggle, which both Gladys features therefore share.
+// @see https://dev.freebox.fr/sdk/os/player/ ("Control the active media player")
 const MEDIA_COMMANDS = {
-  [DEVICE_FEATURE_TYPES.TELEVISION.PLAY]: 'play',
-  [DEVICE_FEATURE_TYPES.TELEVISION.PAUSE]: 'pause',
+  [DEVICE_FEATURE_TYPES.TELEVISION.PLAY]: 'play_pause',
+  [DEVICE_FEATURE_TYPES.TELEVISION.PAUSE]: 'play_pause',
   [DEVICE_FEATURE_TYPES.TELEVISION.STOP]: 'stop',
   [DEVICE_FEATURE_TYPES.TELEVISION.PREVIOUS]: 'prev',
   [DEVICE_FEATURE_TYPES.TELEVISION.NEXT]: 'next',
+  // Undocumented, but reported working on a Devialet player: the doc lists them
+  // as `PlayerStatusCapabilities` fields without exposing them as mediactrl
+  // commands. Kept because they work, unlike the equally undocumented
+  // `play`/`pause` they used to sit next to.
   [DEVICE_FEATURE_TYPES.TELEVISION.REWIND]: 'seek_backward',
   [DEVICE_FEATURE_TYPES.TELEVISION.FORWARD]: 'seek_forward',
+};
+
+// Gladys television feature types -> Freebox remote control keys, sent to
+// `/control/remote`.
+//
+// WARNING: this endpoint is NOT in the official Freebox API documentation —
+// which describes only `status`, `mediactrl`, `volume` and `open` — so these
+// keys come from community reverse engineering and may break without notice.
+// They are kept because they are the only way to reach the navigation keys
+// (arrows, OK, back) that no documented endpoint exposes.
+// @see https://github.com/Aymkdn/assistant-freebox-cloud/wiki/Player-API
+const REMOTE_KEYS = {
+  [DEVICE_FEATURE_TYPES.TELEVISION.CHANNEL_UP]: 'prgm_inc',
+  [DEVICE_FEATURE_TYPES.TELEVISION.CHANNEL_DOWN]: 'prgm_dec',
+  [DEVICE_FEATURE_TYPES.TELEVISION.SOURCE]: 'tv',
+  [DEVICE_FEATURE_TYPES.TELEVISION.MENU]: 'home',
+  [DEVICE_FEATURE_TYPES.TELEVISION.GUIDE]: 'epg',
+  [DEVICE_FEATURE_TYPES.TELEVISION.INFO]: 'info',
+  [DEVICE_FEATURE_TYPES.TELEVISION.UP]: 'up',
+  [DEVICE_FEATURE_TYPES.TELEVISION.DOWN]: 'down',
+  [DEVICE_FEATURE_TYPES.TELEVISION.LEFT]: 'left',
+  [DEVICE_FEATURE_TYPES.TELEVISION.RIGHT]: 'right',
+  [DEVICE_FEATURE_TYPES.TELEVISION.ENTER]: 'ok',
+  [DEVICE_FEATURE_TYPES.TELEVISION.RETURN]: 'back',
+  [DEVICE_FEATURE_TYPES.TELEVISION.RECORD]: 'rec',
 };
 
 /**
@@ -371,6 +407,27 @@ function findPositionEndpointId(gladys, device) {
 }
 
 /**
+ * Build a readable label for a feature being commanded.
+ *
+ * The core hands the command handler a MINIMAL feature payload, carrying the
+ * external_id/category/type but no `name`, which logged `Freebox set
+ * "undefined" = 1`. The resolved device (see withFeatures) does carry the named
+ * features, so look the name up there and fall back on the type.
+ * @param {object} device - The resolved Gladys device.
+ * @param {object} feature - The feature received from the core.
+ * @returns {string} The feature name, its type, or the raw external_id.
+ * @example
+ * featureLabel(device, { external_id: 'freebox:28:1', type: 'state' });
+ */
+function featureLabel(device, feature) {
+  if (feature.name) {
+    return feature.name;
+  }
+  const known = (device.features || []).find((f) => f.external_id === feature.external_id);
+  return (known && known.name) || feature.type || feature.external_id;
+}
+
+/**
  * Apply a user command on a Gladys device feature.
  * @param {object} gladys - The Gladys SDK instance.
  * @param {import('./freebox/FreeboxClient.js').FreeboxClient} client - Freebox client.
@@ -449,7 +506,7 @@ export async function setDeviceValue(gladys, client, appToken, rawDevice, featur
   // A command is a user gesture, not a background loop: keep one readable line
   // per action, with the details behind debug.
   logger.info(
-    `Freebox set "${feature.name}" = ${JSON.stringify(value)} -> ` +
+    `Freebox set "${featureLabel(device, feature)}" = ${JSON.stringify(value)} -> ` +
       `${nodeId}/${endpointIdToDevice} = ${JSON.stringify(valueToDevice)}`,
   );
   logger.debug(
@@ -457,6 +514,57 @@ export async function setDeviceValue(gladys, client, appToken, rawDevice, featur
       `PUT /home/endpoints/${nodeId}/${endpointIdToDevice} ${JSON.stringify({ value: valueToDevice })}`,
   );
   await client.setEndpointValue(appToken, nodeId, endpointIdToDevice, valueToDevice);
+}
+
+/**
+ * Read the current mute state of a player.
+ * @param {import('./freebox/FreeboxClient.js').FreeboxClient} client - Freebox client.
+ * @param {string} appToken - The stored app token.
+ * @param {string} playerBaseUrl - The player API base URL.
+ * @returns {Promise<boolean|undefined>} The mute state, or undefined when unreadable.
+ * @example
+ * const muted = await readPlayerMute(client, token, '/player/1/api/v7');
+ */
+async function readPlayerMute(client, appToken, playerBaseUrl) {
+  try {
+    const response = await client.playerRequest(appToken, {
+      path: `${playerBaseUrl}/control/volume`,
+    });
+    const result = (response.data && response.data.result) || {};
+    return typeof result.mute === 'boolean' ? result.mute : undefined;
+  } catch (e) {
+    // A player that just woke up may refuse the read: fall back on the value
+    // the caller was given rather than dropping the command entirely.
+    logger.debug(`Freebox player: unable to read the mute state: ${e.message}`);
+    return undefined;
+  }
+}
+
+/**
+ * Publish the mute state right after a command, without waiting for the poll.
+ * @param {object} gladys - The Gladys SDK instance.
+ * @param {object} device - The player device.
+ * @param {boolean} muted - The state that was just applied.
+ * @returns {Promise<void>} Resolves when published.
+ * @example
+ * await publishMuteState(gladys, device, true);
+ */
+async function publishMuteState(gladys, device, muted) {
+  const feature = (device.features || []).find(
+    (f) => f.type === DEVICE_FEATURE_TYPES.TELEVISION.VOLUME_MUTE,
+  );
+  if (!feature) {
+    return;
+  }
+  try {
+    await gladys.publishStates([
+      { device_feature_external_id: feature.external_id, state: muted ? 1 : 0 },
+    ]);
+  } catch (e) {
+    // The command itself succeeded: a failed state publish must not surface as
+    // a failed command to the user.
+    logger.debug(`Freebox player: unable to publish the mute state: ${e.message}`);
+  }
 }
 
 /**
@@ -475,7 +583,15 @@ async function setPlayerValue(gladys, client, appToken, device, feature, value) 
     ...device,
     external_id: toNativeId(gladys, device.external_id),
   });
-  logger.debug(`Freebox player: set "${feature.type}" = ${value}`);
+
+  // A command is a user gesture: keep one readable INFO line per action, like
+  // the home-automation branch does. Without it a player command left no trace
+  // at all in the logs, making it impossible to tell a key that was never sent
+  // from one the Freebox silently ignored.
+  logger.info(
+    `Freebox player: set "${featureLabel(device, feature)}" (${feature.type}) = ` +
+      `${JSON.stringify(value)} on ${playerBaseUrl}`,
+  );
 
   // The player API has no on/off endpoint: powering it relies on the remote
   // control "power" key, which TOGGLES the state. Sending it blindly would turn
@@ -510,11 +626,57 @@ async function setPlayerValue(gladys, client, appToken, device, feature, value) 
     return;
   }
 
+  // The dashboard renders mute as a one-shot button, so both "mute me" and
+  // "unmute me" arrive as the SAME value (a click, not a target state). Trusting
+  // that value re-sent `mute: true` on every press and the sound never came
+  // back. Read the current state and flip it, so the button toggles whatever
+  // the dashboard sends, while an explicit 0/1 (a scene, the REST API) is still
+  // honoured as a target state.
   if (feature.type === DEVICE_FEATURE_TYPES.TELEVISION.VOLUME_MUTE) {
+    const current = await readPlayerMute(client, appToken, playerBaseUrl);
+    const wanted = current === undefined ? Number(value) === 1 : !current;
+
     await client.playerRequest(appToken, {
       method: 'PUT',
       path: `${playerBaseUrl}/control/volume`,
-      data: { mute: Number(value) === 1 },
+      data: { mute: wanted },
+    });
+
+    // The Freebox answers with the volume state it just applied, but the poll
+    // may be up to a minute away: publish it now so the dashboard does not sit
+    // on a stale value the user would try to "fix" with another click.
+    await publishMuteState(gladys, device, wanted);
+    return;
+  }
+
+  // Tuning a channel by its number is the only DOCUMENTED way to zap: `open`
+  // takes a `tv:?channel=N` URL. CHANNEL_UP / CHANNEL_DOWN below still go
+  // through the undocumented remote keys, since no documented endpoint offers
+  // a relative "next channel".
+  if (feature.type === DEVICE_FEATURE_TYPES.TELEVISION.CHANNEL) {
+    // Number() rather than parseInt(): the latter truncates silently, turning
+    // "1e3" into channel 1 and "12abc" into channel 12 — zapping to the wrong
+    // channel is worse than refusing the command.
+    const channel = Number(value);
+    if (!Number.isInteger(channel) || channel < 1) {
+      throw new Error(`Freebox player: invalid channel number "${value}"`);
+    }
+    await client.playerRequest(appToken, {
+      method: 'POST',
+      path: `${playerBaseUrl}/control/open`,
+      data: { url: `tv:?channel=${channel}` },
+    });
+    return;
+  }
+
+  // Remote keys (navigation, TV screen, relative zapping) are one-shot presses:
+  // they are triggered by any write, whatever the value the dashboard sends.
+  const key = REMOTE_KEYS[feature.type];
+  if (key) {
+    await client.playerRequest(appToken, {
+      method: 'POST',
+      path: `${playerBaseUrl}/control/remote`,
+      data: { key },
     });
     return;
   }

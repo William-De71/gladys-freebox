@@ -203,6 +203,15 @@ export function convertDevice(freeboxDevice) {
 // "power" is writable through the remote control key, which is a TOGGLE: the
 // command is only sent when the current power state differs from the requested
 // one (see setPlayerValue), so the feature behaves as a regular on/off switch.
+//
+// Three distinct Freebox endpoints sit behind these features (see
+// setPlayerValue): `/control/mediactrl` drives the MEDIA being played,
+// `/control/open` tunes a channel by number, and `/control/remote` presses a
+// key of the physical remote. Only the first two are officially documented.
+//
+// "Next"/"Previous" are media commands, NOT channel changes: zapping is either
+// "Channel" (by number, documented) or "Channel up"/"Channel down" (relative,
+// undocumented remote keys).
 const PLAYER_FEATURES = [
   {
     name: 'Power',
@@ -280,6 +289,121 @@ const PLAYER_FEATURES = [
   {
     name: 'Fast forward',
     type: DEVICE_FEATURE_TYPES.TELEVISION.FORWARD,
+    read_only: false,
+    keep_history: false,
+    min: 0,
+    max: 1,
+  },
+  // Tuning a channel by number: the only zapping the official API documents
+  // (`open` with a `tv:?channel=N` URL). Freebox channel numbers go past 900,
+  // so the range is wide on purpose.
+  {
+    name: 'Channel',
+    type: DEVICE_FEATURE_TYPES.TELEVISION.CHANNEL,
+    read_only: false,
+    keep_history: false,
+    min: 1,
+    max: 999,
+  },
+  {
+    name: 'Channel up',
+    type: DEVICE_FEATURE_TYPES.TELEVISION.CHANNEL_UP,
+    read_only: false,
+    keep_history: false,
+    min: 0,
+    max: 1,
+  },
+  {
+    name: 'Channel down',
+    type: DEVICE_FEATURE_TYPES.TELEVISION.CHANNEL_DOWN,
+    read_only: false,
+    keep_history: false,
+    min: 0,
+    max: 1,
+  },
+  {
+    name: 'TV',
+    type: DEVICE_FEATURE_TYPES.TELEVISION.SOURCE,
+    read_only: false,
+    keep_history: false,
+    min: 0,
+    max: 1,
+  },
+  {
+    name: 'Home',
+    type: DEVICE_FEATURE_TYPES.TELEVISION.MENU,
+    read_only: false,
+    keep_history: false,
+    min: 0,
+    max: 1,
+  },
+  {
+    name: 'Guide',
+    type: DEVICE_FEATURE_TYPES.TELEVISION.GUIDE,
+    read_only: false,
+    keep_history: false,
+    min: 0,
+    max: 1,
+  },
+  {
+    name: 'Info',
+    type: DEVICE_FEATURE_TYPES.TELEVISION.INFO,
+    read_only: false,
+    keep_history: false,
+    min: 0,
+    max: 1,
+  },
+  {
+    name: 'Up',
+    type: DEVICE_FEATURE_TYPES.TELEVISION.UP,
+    read_only: false,
+    keep_history: false,
+    min: 0,
+    max: 1,
+  },
+  {
+    name: 'Down',
+    type: DEVICE_FEATURE_TYPES.TELEVISION.DOWN,
+    read_only: false,
+    keep_history: false,
+    min: 0,
+    max: 1,
+  },
+  {
+    name: 'Left',
+    type: DEVICE_FEATURE_TYPES.TELEVISION.LEFT,
+    read_only: false,
+    keep_history: false,
+    min: 0,
+    max: 1,
+  },
+  {
+    name: 'Right',
+    type: DEVICE_FEATURE_TYPES.TELEVISION.RIGHT,
+    read_only: false,
+    keep_history: false,
+    min: 0,
+    max: 1,
+  },
+  {
+    name: 'OK',
+    type: DEVICE_FEATURE_TYPES.TELEVISION.ENTER,
+    read_only: false,
+    keep_history: false,
+    min: 0,
+    max: 1,
+  },
+  {
+    name: 'Back',
+    type: DEVICE_FEATURE_TYPES.TELEVISION.RETURN,
+    read_only: false,
+    keep_history: false,
+    min: 0,
+    max: 1,
+  },
+  {
+    name: 'Record',
+    type: DEVICE_FEATURE_TYPES.TELEVISION.RECORD,
     read_only: false,
     keep_history: false,
     min: 0,

@@ -57,22 +57,13 @@ function getCameraUrl(device) {
 }
 
 /**
- * Capture a single JPEG frame from a Freebox camera stream with ffmpeg.
- * @param {object} device - Gladys camera device (carries the CAMERA_URL param).
- * @param {object} [options] - Options.
- * @param {number} [options.timeoutMs] - Kill ffmpeg after this delay (default 12s).
- * @returns {Promise<string>} `image/jpg;base64,...` string, <= 150 KB.
- * @example
- * const image = await captureCameraImage(device);
+ * Run one ffmpeg capture attempt.
+ * @param {object} device - Gladys camera device.
+ * @param {string} url - The (normalized) stream URL.
+ * @param {number} timeoutMs - Kill ffmpeg after this delay.
+ * @returns {Promise<string>} `image/jpg;base64,...` string.
  */
-export function captureCameraImage(device, { timeoutMs = 12000 } = {}) {
-  const url = getCameraUrl(device);
-  if (!url) {
-    return Promise.reject(
-      new Error(`Freebox camera "${device.name || device.external_id}" has no CAMERA_URL param`),
-    );
-  }
-
+function runCapture(device, url, timeoutMs) {
   return new Promise((resolve, reject) => {
     // -frames:v 1  -> a single frame
     // -vf scale     -> downscale so the JPEG stays under 150 KB
@@ -134,4 +125,50 @@ export function captureCameraImage(device, { timeoutMs = 12000 } = {}) {
       resolve(`image/jpg;base64,${buffer.toString('base64')}`);
     });
   });
+}
+
+// An HLS playlist points at segments that live in a sliding window: the .ts
+// file listed in the .m3u8 can already be gone by the time ffmpeg asks for it,
+// which fails the capture with "Error when loading first segment" even though
+// the camera is perfectly healthy. Re-reading the playlist picks up fresh
+// segments, so one quick retry turns that transient race into a normal capture.
+const CAPTURE_ATTEMPTS = 2;
+const RETRY_DELAY_MS = 500;
+
+/**
+ * Capture a single JPEG frame from a Freebox camera stream with ffmpeg.
+ * Retries once when the first attempt fails, to survive an expired HLS segment.
+ * @param {object} device - Gladys camera device (carries the CAMERA_URL param).
+ * @param {object} [options] - Options.
+ * @param {number} [options.timeoutMs] - Kill ffmpeg after this delay (default 12s).
+ * @returns {Promise<string>} `image/jpg;base64,...` string, <= 150 KB.
+ * @example
+ * const image = await captureCameraImage(device);
+ */
+export async function captureCameraImage(device, { timeoutMs = 12000 } = {}) {
+  const url = getCameraUrl(device);
+  if (!url) {
+    throw new Error(
+      `Freebox camera "${device.name || device.external_id}" has no CAMERA_URL param`,
+    );
+  }
+
+  let lastError;
+  for (let attempt = 1; attempt <= CAPTURE_ATTEMPTS; attempt += 1) {
+    try {
+      return await runCapture(device, url, timeoutMs);
+    } catch (e) {
+      lastError = e;
+      if (attempt < CAPTURE_ATTEMPTS) {
+        logger.debug(
+          `Freebox camera "${device.name || device.external_id}" capture failed ` +
+            `(attempt ${attempt}/${CAPTURE_ATTEMPTS}), retrying: ${e.message}`,
+        );
+        await new Promise((r) => {
+          setTimeout(r, RETRY_DELAY_MS);
+        });
+      }
+    }
+  }
+  throw lastError;
 }

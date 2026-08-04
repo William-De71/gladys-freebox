@@ -5,7 +5,18 @@ This integration lets you control your **Freebox** from Gladys Assistant, direct
 ## Features
 
 - **Freebox home automation**: opening sensors, motion sensors, battery level, roller shutters (state and position).
-- **Freebox Players** (compatible models, see below): power state (read-only), volume, mute, and media control (play, pause, stop, previous, next, rewind and fast forward).
+- **Freebox Players** (compatible models, see below): power, volume, mute, **tuning a channel by its number**, media control (play/pause, stop, previous, next, rewind and fast forward) and remote control keys (channel up/down, TV, home, guide, info, record, arrow keys, OK and back).
+
+  ℹ️ **"Next" / "Previous" do not change channel**: they are media commands (track or chapter of what is playing). To zap, use **"Channel"** (direct number), or **"Channel up"** / **"Channel down"**.
+
+  ℹ️ **"Play" and "Pause" act as a toggle**: the Freebox API exposes a single `play_pause` command for both, so the two buttons do the same thing.
+
+  ℹ️ **"Mute" is a toggle too**: each press mutes or restores the sound based on the player's real state, read right before the command is sent.
+
+  ⚠️ **Some keys are not guaranteed.** Only power, volume, tuning by channel number and media control rely on the API documented by Free. The navigation keys (arrows, OK, back, home, guide, info, channel up/down) use an **undocumented** endpoint that may stop working after a Freebox update.
+
+  ℹ️ Media commands depend on what the player is currently playing: on the home screen, with no active media, they may have **no effect**. Use the navigation keys to start a channel or a piece of content first.
+
 - **Freebox cameras**: image shown on the dashboard (refreshed automatically) and on demand, captured from the video stream with ffmpeg.
 - **Actions**: pair, test the connection, reboot the Freebox and unpair, right from the configuration screen.
 

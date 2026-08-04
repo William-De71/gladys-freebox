@@ -5,7 +5,18 @@ Cette intégration permet de contrôler votre **Freebox** depuis Gladys Assistan
 ## Fonctionnalités
 
 - **Domotique Freebox** : capteurs d'ouverture, capteurs de mouvement, niveau de batterie, volets roulants (état et position).
-- **Freebox Players** (modèles compatibles, voir plus bas) : allumage détecté (lecture seule), volume, coupure du son, et contrôle de la lecture (play, pause, stop, précédent, suivant, retour et avance rapide).
+- **Freebox Players** (modèles compatibles, voir plus bas) : allumage, volume, coupure du son, **choix de la chaîne par son numéro**, contrôle de la lecture (lecture/pause, stop, précédent, suivant, retour et avance rapide) et touches de la télécommande (chaîne suivante/précédente, TV, accueil, guide, info, enregistrement, flèches directionnelles, OK et retour).
+
+  ℹ️ **« Suivant » / « Précédent » ne changent pas de chaîne** : ce sont des commandes de lecture (piste ou chapitre du média en cours). Pour zapper, utilisez **« Chaîne »** (numéro direct), ou **« Chaîne suivante »** / **« Chaîne précédente »**.
+
+  ℹ️ **« Lecture » et « Pause » agissent comme une bascule** : l'API Freebox n'expose qu'une seule commande `play_pause` pour les deux, les deux boutons ont donc le même effet.
+
+  ℹ️ **« Muet » est également une bascule** : chaque appui coupe ou rétablit le son selon l'état réel du player, lu juste avant l'envoi de la commande.
+
+  ⚠️ **Certaines touches ne sont pas garanties.** Seuls l'allumage, le volume, le choix de chaîne par numéro et les commandes de lecture reposent sur l'API documentée par Free. Les touches de navigation (flèches, OK, retour, accueil, guide, info, chaîne suivante/précédente) utilisent un point d'entrée **non documenté**, susceptible de cesser de fonctionner après une mise à jour de la Freebox.
+
+  ℹ️ Les commandes de lecture dépendent de ce que le player est en train de lire : sur l'écran d'accueil, sans média actif, elles peuvent rester **sans effet**. Utilisez alors les touches de navigation pour lancer une chaîne ou un contenu.
+
 - **Caméras Freebox** : image affichée sur le tableau de bord (rafraîchie automatiquement) et à la demande, via une capture ffmpeg du flux vidéo.
 - **Actions** : appairer, tester la connexion, redémarrer la Freebox et désappairer, directement depuis l'écran de configuration.
 
