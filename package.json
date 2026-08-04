@@ -1,6 +1,6 @@
 {
   "name": "gladys-freebox",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "private": true,
   "description": "External integration to control your Freebox (home automation devices, players and cameras) from Gladys Assistant.",
   "type": "module",
