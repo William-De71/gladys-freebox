@@ -1,3 +1,8 @@
+## [1.1.0](https://github.com/William-De71/gladys-freebox/compare/v1.0.8...v1.1.0) (2026-08-20)
+
+### Features
+
+* support SDK 0.12.0, store categories and automatic changelog ([b42e95e](https://github.com/William-De71/gladys-freebox/commit/b42e95e64b8ac68bcf269e1145405622ac7799b6))
 
 ## [1.0.8](https://github.com/William-De71/gladys-freebox/compare/v1.0.7...v1.0.8) (2026-08-04)
 
