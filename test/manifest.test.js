@@ -19,9 +19,44 @@ test('manifest declares the mandatory fields', () => {
   assert.ok(manifest.gladys_version.startsWith('>='));
 });
 
-test('manifest description is bilingual', () => {
-  assert.ok(manifest.description.en.length > 0);
-  assert.ok(manifest.description.fr.length > 0);
+// The four languages of the Gladys interface.
+const LANGUAGES = ['en', 'fr', 'de', 'es'];
+
+/**
+ * Collect every localized object of the manifest (any object carrying `en`).
+ * @param {any} node - Part of the manifest to walk.
+ * @param {string} path - Where `node` sits, for the assertion message.
+ * @returns {Array<{ path: string, value: object }>} The localized objects.
+ * @example
+ * localizedObjects(manifest, 'manifest');
+ */
+function localizedObjects(node, path) {
+  if (!node || typeof node !== 'object') {
+    return [];
+  }
+  if (!Array.isArray(node) && typeof node.en === 'string') {
+    return [{ path, value: node }];
+  }
+  return Object.entries(node).flatMap(([key, child]) => localizedObjects(child, `${path}.${key}`));
+}
+
+test('every manifest text is translated in the four Gladys languages', () => {
+  const texts = localizedObjects(manifest, 'manifest');
+  assert.ok(texts.length > 0);
+  texts.forEach(({ path, value }) => {
+    LANGUAGES.forEach((lang) => {
+      assert.ok(
+        typeof value[lang] === 'string' && value[lang].trim().length > 0,
+        `${path} lacks "${lang}"`,
+      );
+    });
+  });
+});
+
+test('the pairing action outlasts the wait for the LCD confirmation', () => {
+  const pair = manifest.actions.find((action) => action.key === 'pair');
+  // 55 s of LCD wait, then discovery and publication of the devices.
+  assert.ok(pair.timeout_seconds >= 90 && pair.timeout_seconds <= 120);
 });
 
 test('manifest exposes the pairing actions', () => {

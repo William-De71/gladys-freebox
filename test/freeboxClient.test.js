@@ -108,3 +108,43 @@ test('loadPlayers keeps only the players exposing the local control API', async 
   assert.equal(players.length, 1);
   assert.equal(players[0].id, 1);
 });
+
+test('openSession shares one login between concurrent callers', async () => {
+  const client = new FreeboxClient();
+  let logins = 0;
+  client.loginWithChallenge = async () => {
+    logins += 1;
+    await new Promise((resolve) => {
+      setTimeout(resolve, 10);
+    });
+    client.sessionToken = `session-${logins}`;
+    return client.sessionToken;
+  };
+
+  const tokens = await Promise.all([
+    client.openSession('app'),
+    client.openSession('app'),
+    client.openSession('app'),
+  ]);
+  assert.equal(logins, 1);
+  assert.deepEqual(tokens, ['session-1', 'session-1', 'session-1']);
+
+  // Once settled, a later call (an expired session) logs in again.
+  await client.openSession('app');
+  assert.equal(logins, 2);
+});
+
+test('openSession lets the next call retry after a failed login', async () => {
+  const client = new FreeboxClient();
+  let calls = 0;
+  client.loginWithChallenge = async () => {
+    calls += 1;
+    if (calls === 1) {
+      throw new Error('box unreachable');
+    }
+    return 'session';
+  };
+
+  await assert.rejects(client.openSession('app'), /box unreachable/);
+  assert.equal(await client.openSession('app'), 'session');
+});

@@ -4,7 +4,7 @@ Cette intégration permet de contrôler votre **Freebox** depuis Gladys Assistan
 
 ## Fonctionnalités
 
-- **Domotique Freebox** : capteurs d'ouverture, capteurs de mouvement, niveau de batterie, volets roulants (état et position).
+- **Domotique Freebox** : capteurs d'ouverture, capteurs de mouvement, niveau de batterie, contacts anti-arrachement, volets roulants (état et position), centrale d'alarme (armement, désarmement, état) et télécommande d'alarme.
 - **Freebox Players** (modèles compatibles, voir plus bas) : allumage, volume, coupure du son, **choix de la chaîne par son numéro**, contrôle de la lecture (lecture/pause, stop, précédent, suivant, retour et avance rapide) et touches de la télécommande (chaîne suivante/précédente, TV, accueil, guide, info, enregistrement, flèches directionnelles, OK et retour).
 
   ℹ️ **« Suivant » / « Précédent » ne changent pas de chaîne** : ce sont des commandes de lecture (piste ou chapitre du média en cours). Pour zapper, utilisez **« Chaîne »** (numéro direct), ou **« Chaîne suivante »** / **« Chaîne précédente »**.
@@ -13,11 +13,11 @@ Cette intégration permet de contrôler votre **Freebox** depuis Gladys Assistan
 
   ℹ️ **« Muet » est également une bascule** : chaque appui coupe ou rétablit le son selon l'état réel du player, lu juste avant l'envoi de la commande.
 
-  ⚠️ **Certaines touches ne sont pas garanties.** Seuls l'allumage, le volume, le choix de chaîne par numéro et les commandes de lecture reposent sur l'API documentée par Free. Les touches de navigation (flèches, OK, retour, accueil, guide, info, chaîne suivante/précédente) utilisent un point d'entrée **non documenté**, susceptible de cesser de fonctionner après une mise à jour de la Freebox.
+  ⚠️ **Certaines touches ne sont pas garanties.** Seuls le volume, la coupure du son, le choix de chaîne par numéro et les principales commandes de lecture reposent sur l'API documentée par Free. L'allumage et les touches de navigation (flèches, OK, retour, accueil, guide, info, chaîne suivante/précédente) simulent l'appui sur une touche de la télécommande virtuelle, un point d'entrée **non documenté**, susceptible de cesser de fonctionner après une mise à jour de la Freebox.
 
   ℹ️ Les commandes de lecture dépendent de ce que le player est en train de lire : sur l'écran d'accueil, sans média actif, elles peuvent rester **sans effet**. Utilisez alors les touches de navigation pour lancer une chaîne ou un contenu.
 
-- **Caméras Freebox** : image affichée sur le tableau de bord (rafraîchie automatiquement) et à la demande, via une capture ffmpeg du flux vidéo.
+- **Caméras Freebox** : image affichée sur le tableau de bord (rafraîchie chaque minute) et à la demande, via une capture ffmpeg du flux vidéo.
 - **Actions** : appairer, tester la connexion, redémarrer la Freebox et désappairer, directement depuis l'écran de configuration.
 
 ## Prérequis
@@ -42,9 +42,10 @@ Après l'appairage, ouvrez les réglages de votre Freebox :
 
 et **cochez** les permissions suivantes :
 
-- **Gestion de la domotique et de l'alarme** (capteurs, volets)
+- **Gestion de la domotique et de l'alarme** (capteurs, volets, alarme)
 - **Accès aux caméras**
 - **Contrôle du Freebox Player**
+- **Modification des réglages de la Freebox** : uniquement pour l'action « Redémarrer la Freebox ».
 
 ⚠️ Sans ces cases cochées, les appareils correspondants **n'apparaîtront pas** lors de la découverte. C'est la cause la plus fréquente d'un appareil manquant.
 
@@ -59,3 +60,11 @@ Les Player des Freebox **Delta** et **Revolution** (qui exposent l'API player lo
 ## Redémarrer la Freebox
 
 L'action **« Redémarrer la Freebox »** de l'écran de configuration relance votre Freebox Server. Il n'existe pas d'action d'extinction : l'API Freebox n'expose que le redémarrage (une box éteinte ne pourrait pas être rallumée à distance).
+
+## En cas de problème
+
+- **« Freebox not found on the local network »** (ou `ENOTFOUND mafreebox.freebox.fr`) : Gladys n'arrive pas à joindre `mafreebox.freebox.fr`. Vérifiez que Gladys est bien derrière la Freebox (et non derrière un autre routeur) et que cette adresse est résolue sur votre réseau.
+- **Un appareil manque à la découverte** : la permission correspondante n'est pas cochée dans Freebox OS (voir plus haut). Cochez-la, puis relancez un scan.
+- **« Freebox session could not be opened »** : l'autorisation a été révoquée dans Freebox OS. Cliquez sur **« Désappairer »**, puis de nouveau sur **« Appairer avec la Freebox »**.
+- **Redémarrage refusé** : la permission « Modification des réglages de la Freebox » n'est pas cochée.
+- **Pas d'image de caméra** : vérifiez que la caméra affiche son flux dans Freebox OS. L'image est rafraîchie chaque minute ; la vue en direct en capture une nouvelle à la demande.

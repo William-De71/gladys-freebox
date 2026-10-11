@@ -1,0 +1,70 @@
+# Integración Freebox
+
+Esta integración le permite controlar su **Freebox** desde Gladys Assistant, directamente a través de su red local y sin pasar por la nube.
+
+## Funciones
+
+- **Domótica Freebox**: sensores de apertura, detectores de movimiento, nivel de batería, contactos antisabotaje, persianas (estado y posición), central de alarma (activar, desactivar, estado) y mando de la alarma.
+- **Freebox Players** (modelos compatibles, ver más abajo): encendido, volumen, silencio, **selección de canal por su número**, control de la reproducción (reproducir/pausa, stop, anterior, siguiente, retroceso y avance rápido) y teclas del mando a distancia (canal arriba/abajo, TV, inicio, guía, info, grabar, flechas, OK y volver).
+
+  ℹ️ **«Siguiente» / «Anterior» no cambian de canal**: son comandos de reproducción (pista o capítulo del contenido en curso). Para hacer zapping, use **«Canal»** (número directo), o **«Canal arriba»** / **«Canal abajo»**.
+
+  ℹ️ **«Reproducir» y «Pausa» funcionan como un interruptor**: la API de Freebox ofrece un único comando `play_pause` para ambos, así que los dos botones hacen lo mismo.
+
+  ℹ️ **«Silencio» también es un interruptor**: cada pulsación silencia o restablece el sonido según el estado real del player, leído justo antes de enviar el comando.
+
+  ⚠️ **Algunas teclas no están garantizadas.** Solo el volumen, el silencio, la selección de canal por número y los principales comandos de reproducción se basan en la API documentada por Free. El encendido y las teclas de navegación (flechas, OK, volver, inicio, guía, info, canal arriba/abajo) simulan la pulsación de una tecla del mando virtual, un punto de acceso **no documentado** que puede dejar de funcionar tras una actualización de la Freebox.
+
+  ℹ️ Los comandos de reproducción dependen de lo que el player esté reproduciendo: en la pantalla de inicio, sin contenido activo, pueden **no tener efecto**. Use entonces las teclas de navegación para lanzar un canal o un contenido.
+
+- **Cámaras Freebox**: imagen mostrada en el panel (actualizada cada minuto) y bajo demanda, capturada del flujo de vídeo con ffmpeg.
+- **Acciones**: vincular, probar la conexión, reiniciar la Freebox y desvincular, directamente desde la pantalla de configuración.
+
+## Requisitos
+
+- Una Freebox (Delta, Ultra, Pop, Revolution…) con el servidor domótico activado.
+- Gladys Assistant y esta integración deben estar en la **misma red local** que la Freebox (acceso a `mafreebox.freebox.fr`).
+
+## Vinculación
+
+1. Abra en Gladys la pantalla de configuración de la integración Freebox.
+2. Haga clic en el botón **«Vincular con la Freebox»**.
+3. Vaya hasta su Freebox Server: su pantalla LCD muestra una solicitud de autorización. Pulse la **flecha derecha** para confirmar.
+4. La vinculación queda guardada: solo hay que hacerla una vez.
+
+⏱️ **Dispone de unos 55 segundos** para pulsar la flecha derecha de la pantalla LCD. Pasado ese plazo, la vinculación falla con el mensaje «authorization was not confirmed on the LCD screen»: simplemente vuelva a lanzar la acción **«Vincular con la Freebox»**. Colóquese junto a su Freebox **antes** de hacer clic en el botón.
+
+## Permisos que hay que activar (importante)
+
+Tras la vinculación, abra los ajustes de su Freebox:
+
+**Freebox OS > Settings > Access management > Applications > Gladys Assistant**
+
+(en la interfaz en francés: Paramètres > Gestion des accès > Applications) y **active** los siguientes permisos:
+
+- **Gestión de la domótica y de la alarma** (sensores, persianas, alarma)
+- **Acceso a las cámaras**
+- **Control del Freebox Player**
+- **Modificación de los ajustes de la Freebox**: solo lo necesita la acción «Reiniciar la Freebox».
+
+⚠️ Sin estas casillas marcadas, los dispositivos correspondientes **no aparecerán** durante la búsqueda. Es la causa más frecuente de un dispositivo que falta.
+
+Una vez concedidos los permisos, lance una búsqueda de dispositivos: Gladys mostrará todos los dispositivos detectados en su Freebox. Elija los que desee crear.
+
+## Limitación de los Freebox Player POP / Android TV
+
+Los **Freebox Player POP** (y otros players basados en **Android TV**) **no se pueden controlar** con esta integración: Free no ofrece la API de control local en esos modelos (el player se anuncia con `api_available: false` y por tanto se ignora). Para controlar un Player POP, use una integración **Android TV** (protocolo ADB), fuera del alcance de esta integración.
+
+Los Players de las Freebox **Delta** y **Revolution** (que ofrecen la API local del player) siguen siendo totalmente controlables.
+
+## Reiniciar la Freebox
+
+La acción **«Reiniciar la Freebox»** de la pantalla de configuración reinicia su Freebox Server. No existe una acción de apagado: la API de Freebox solo ofrece el reinicio (una caja apagada no podría volver a encenderse a distancia).
+
+## Solución de problemas
+
+- **«Freebox not found on the local network»** (o `ENOTFOUND mafreebox.freebox.fr`): Gladys no consigue acceder a `mafreebox.freebox.fr`. Compruebe que Gladys está detrás de la Freebox (y no detrás de otro router) y que esa dirección se resuelve en su red.
+- **Falta un dispositivo en la búsqueda**: el permiso correspondiente no está marcado en Freebox OS (ver más arriba). Márquelo y vuelva a lanzar la búsqueda.
+- **«Freebox session could not be opened»**: la autorización se revocó en Freebox OS. Haga clic en **«Desvincular la Freebox»** y luego de nuevo en **«Vincular con la Freebox»**.
+- **Reinicio rechazado**: el permiso «Modificación de los ajustes de la Freebox» no está marcado.
+- **Sin imagen de cámara**: compruebe que la cámara muestra su flujo en Freebox OS. La imagen se actualiza cada minuto; la vista en directo captura una nueva bajo demanda.

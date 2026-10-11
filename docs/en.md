@@ -4,7 +4,7 @@ This integration lets you control your **Freebox** from Gladys Assistant, direct
 
 ## Features
 
-- **Freebox home automation**: opening sensors, motion sensors, battery level, roller shutters (state and position).
+- **Freebox home automation**: opening sensors, motion sensors, battery level, tamper contacts, roller shutters (state and position), alarm control panel (arm, disarm, state) and alarm keyfob.
 - **Freebox Players** (compatible models, see below): power, volume, mute, **tuning a channel by its number**, media control (play/pause, stop, previous, next, rewind and fast forward) and remote control keys (channel up/down, TV, home, guide, info, record, arrow keys, OK and back).
 
   ℹ️ **"Next" / "Previous" do not change channel**: they are media commands (track or chapter of what is playing). To zap, use **"Channel"** (direct number), or **"Channel up"** / **"Channel down"**.
@@ -13,11 +13,11 @@ This integration lets you control your **Freebox** from Gladys Assistant, direct
 
   ℹ️ **"Mute" is a toggle too**: each press mutes or restores the sound based on the player's real state, read right before the command is sent.
 
-  ⚠️ **Some keys are not guaranteed.** Only power, volume, tuning by channel number and media control rely on the API documented by Free. The navigation keys (arrows, OK, back, home, guide, info, channel up/down) use an **undocumented** endpoint that may stop working after a Freebox update.
+  ⚠️ **Some keys are not guaranteed.** Only volume, mute, tuning by channel number and the main media commands rely on the API documented by Free. Power and the navigation keys (arrows, OK, back, home, guide, info, channel up/down) press a key of the virtual remote, an **undocumented** endpoint that may stop working after a Freebox update.
 
   ℹ️ Media commands depend on what the player is currently playing: on the home screen, with no active media, they may have **no effect**. Use the navigation keys to start a channel or a piece of content first.
 
-- **Freebox cameras**: image shown on the dashboard (refreshed automatically) and on demand, captured from the video stream with ffmpeg.
+- **Freebox cameras**: image shown on the dashboard (refreshed every minute) and on demand, captured from the video stream with ffmpeg.
 - **Actions**: pair, test the connection, reboot the Freebox and unpair, right from the configuration screen.
 
 ## Requirements
@@ -42,9 +42,10 @@ After pairing, open your Freebox settings:
 
 and **enable** the following permissions:
 
-- **Home automation and alarm management** (sensors, shutters)
+- **Home automation and alarm management** (sensors, shutters, alarm)
 - **Camera access**
 - **Freebox Player control**
+- **Freebox settings modification**: only needed by the "Reboot the Freebox" action.
 
 ⚠️ Without these boxes ticked, the matching devices will **not appear** during discovery. This is the most common cause of a missing device.
 
@@ -59,3 +60,11 @@ The Players of the **Delta** and **Revolution** Freebox (which expose the local 
 ## Rebooting the Freebox
 
 The **"Reboot the Freebox"** action on the configuration screen restarts your Freebox Server. There is no shutdown action: the Freebox API only exposes a reboot (a powered-off box could not be turned back on remotely).
+
+## Troubleshooting
+
+- **"Freebox not found on the local network"** (or `ENOTFOUND mafreebox.freebox.fr`): Gladys cannot reach `mafreebox.freebox.fr`. Check that Gladys runs behind the Freebox (not behind another router) and that this address resolves on your network.
+- **A device is missing from the scan**: the matching permission is not ticked in Freebox OS (see above). Tick it, then scan again.
+- **"Freebox session could not be opened"**: the authorization was revoked in Freebox OS. Click **"Unpair"**, then **"Pair with the Freebox"** again.
+- **Reboot refused**: the "Freebox settings modification" permission is not ticked.
+- **No camera image**: check that the camera shows its stream in Freebox OS. The image is refreshed every minute; the live view captures a new one on demand.

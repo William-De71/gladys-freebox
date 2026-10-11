@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 540" width="880" height="540" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title>How the Freebox integration talks to your Freebox</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#57606a"/>
+    </marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8250df"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="880" height="540" rx="14" fill="#ffffff" stroke="#d0d7de"/>
+
+  <!-- Gladys -->
+  <rect x="40" y="40" width="220" height="110" rx="10" fill="#eef6ff" stroke="#0969da" stroke-width="1.5"/>
+  <text x="150" y="80" text-anchor="middle" font-size="16" font-weight="600" fill="#0a3069">Gladys</text>
+  <text x="150" y="104" text-anchor="middle" font-size="12" fill="#24292f">dashboard, scenes,</text>
+  <text x="150" y="122" text-anchor="middle" font-size="12" fill="#24292f">camera images</text>
+
+  <!-- Integration -->
+  <rect x="380" y="40" width="250" height="110" rx="10" fill="#fff8e6" stroke="#bf8700" stroke-width="1.5"/>
+  <text x="505" y="78" text-anchor="middle" font-size="16" font-weight="600" fill="#6b4600">Freebox integration</text>
+  <text x="505" y="102" text-anchor="middle" font-size="12" fill="#24292f">its own container, ffmpeg bundled,</text>
+  <text x="505" y="120" text-anchor="middle" font-size="12" fill="#24292f">app token kept in the Gladys config</text>
+
+  <!-- Gladys <-> integration -->
+  <line x1="260" y1="95" x2="378" y2="95" stroke="#57606a" stroke-width="1.5" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+  <text x="319" y="82" text-anchor="middle" font-size="11" fill="#57606a">WebSocket</text>
+  <text x="319" y="114" text-anchor="middle" font-size="11" fill="#57606a">+ host API</text>
+
+  <!-- LAN band -->
+  <rect x="20" y="200" width="840" height="320" rx="12" fill="#f6f8fa" stroke="#d0d7de" stroke-dasharray="6 5"/>
+  <text x="40" y="225" font-size="12" font-weight="600" fill="#57606a">YOUR LOCAL NETWORK</text>
+
+  <!-- Freebox Server -->
+  <rect x="330" y="245" width="350" height="96" rx="10" fill="#ffffff" stroke="#24292f" stroke-width="1.5"/>
+  <text x="505" y="275" text-anchor="middle" font-size="15" font-weight="600" fill="#24292f">Freebox Server</text>
+  <text x="505" y="297" text-anchor="middle" font-size="12" fill="#57606a">mafreebox.freebox.fr — Freebox OS API</text>
+  <text x="505" y="319" text-anchor="middle" font-size="12" fill="#57606a">HTTPS checked against Free's root CAs</text>
+
+  <!-- integration <-> Freebox -->
+  <line x1="505" y1="150" x2="505" y2="243" stroke="#57606a" stroke-width="1.5" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+  <text x="515" y="190" font-size="11" fill="#57606a">one session, shared</text>
+  <text x="515" y="206" font-size="11" fill="#57606a">by every request</text>
+
+  <!-- Home automation -->
+  <rect x="45" y="385" width="245" height="115" rx="10" fill="#ffffff" stroke="#24292f" stroke-width="1.5"/>
+  <text x="167" y="412" text-anchor="middle" font-size="14" font-weight="600" fill="#24292f">Home automation</text>
+  <text x="62" y="436" font-size="12" fill="#24292f">• opening / motion sensors</text>
+  <text x="62" y="455" font-size="12" fill="#24292f">• roller shutters (state, position)</text>
+  <text x="62" y="474" font-size="12" fill="#24292f">• alarm, keyfob, battery, tamper</text>
+  <text x="62" y="493" font-size="11" fill="#57606a">read every 30 s</text>
+
+  <!-- Players -->
+  <rect x="318" y="385" width="245" height="115" rx="10" fill="#ffffff" stroke="#24292f" stroke-width="1.5"/>
+  <text x="440" y="412" text-anchor="middle" font-size="14" font-weight="600" fill="#24292f">Freebox Players</text>
+  <text x="335" y="436" font-size="12" fill="#24292f">• power, volume, mute</text>
+  <text x="335" y="455" font-size="12" fill="#24292f">• channel number, media, remote</text>
+  <text x="335" y="474" font-size="12" fill="#cf222e">• Player POP (Android TV): skipped</text>
+  <text x="335" y="493" font-size="11" fill="#57606a">read every 30 s</text>
+
+  <!-- Cameras -->
+  <rect x="591" y="385" width="245" height="115" rx="10" fill="#ffffff" stroke="#24292f" stroke-width="1.5"/>
+  <text x="713" y="412" text-anchor="middle" font-size="14" font-weight="600" fill="#24292f">Freebox cameras</text>
+  <text x="608" y="436" font-size="12" fill="#24292f">• HLS stream, one frame</text>
+  <text x="608" y="455" font-size="12" fill="#24292f">  captured by ffmpeg</text>
+  <text x="608" y="474" font-size="12" fill="#24292f">• dashboard image + live view</text>
+  <text x="608" y="493" font-size="11" fill="#57606a">pushed every 60 s</text>
+
+  <!-- Freebox -> devices -->
+  <line x1="380" y1="341" x2="200" y2="383" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="460" y1="341" x2="440" y2="383" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="630" y1="341" x2="700" y2="383" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- integration -> cameras: ffmpeg -->
+  <path d="M630,120 C790,140 820,250 760,383" fill="none" stroke="#8250df" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arrow-purple)"/>
+  <text x="795" y="230" font-size="11" fill="#8250df">ffmpeg</text>
+  <text x="795" y="246" font-size="11" fill="#8250df">reads the</text>
+  <text x="795" y="262" font-size="11" fill="#8250df">stream</text>
+</svg>

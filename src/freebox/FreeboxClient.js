@@ -39,6 +39,8 @@ export class FreeboxClient {
     this.baseApiUrl = null;
     // Current session token, refreshed lazily / on expiry.
     this.sessionToken = null;
+    // Session opening in flight, shared by concurrent callers (see openSession).
+    this.sessionPromise = null;
   }
 
   /**
@@ -162,6 +164,26 @@ export class FreeboxClient {
     if (!appToken) {
       throw new Error('Freebox is not paired (no app token)');
     }
+    // Gladys polls every device on the same tick: without this, each poll
+    // would run its own challenge + login round trip, and the sessions opened
+    // in parallel would replace one another. Concurrent callers share one.
+    if (!this.sessionPromise) {
+      this.sessionPromise = this.loginWithChallenge(appToken).finally(() => {
+        this.sessionPromise = null;
+      });
+    }
+    return this.sessionPromise;
+  }
+
+  /**
+   * One login round trip: read the challenge, answer it, store the token.
+   * Called through openSession(), which shares it between concurrent callers.
+   * @param {string} appToken - The app token obtained during pairing.
+   * @returns {Promise<string>} The session token.
+   * @example
+   * const token = await client.loginWithChallenge(appToken);
+   */
+  async loginWithChallenge(appToken) {
     await this.ensureDiscovered();
 
     // 1) Get the current challenge.
@@ -224,10 +246,14 @@ export class FreeboxClient {
         headers: { ...options.headers, 'X-Fbx-App-Auth': this.sessionToken },
       });
 
+    const tokenUsed = this.sessionToken;
     let response = await run();
     if (isTokenExpired(response)) {
-      // Session expired: refresh and retry once.
-      await this.openSession(appToken);
+      // Session expired: refresh and retry once. A concurrent request may have
+      // refreshed it already, in which case the new token is simply reused.
+      if (this.sessionToken === tokenUsed) {
+        await this.openSession(appToken);
+      }
       response = await run();
     }
     return response;
@@ -393,6 +419,7 @@ export class FreeboxClient {
   /** Reset the in-memory session (e.g. on unpair). */
   reset() {
     this.sessionToken = null;
+    this.sessionPromise = null;
   }
 }
 

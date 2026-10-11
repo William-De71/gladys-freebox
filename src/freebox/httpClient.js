@@ -1,24 +1,54 @@
 // -----------------------------------------------------------------------------
 // Low-level HTTP client for the Freebox local API.
 //
-// The Freebox serves its API over HTTPS with a self-signed certificate chained
-// to the Freebox Root CA (see constants.js). We use the native `https` module
-// with a dedicated agent that trusts that CA, so no extra HTTP dependency is
-// pulled in.
+// The Freebox serves its API over HTTPS with a certificate issued by Free's own
+// root CAs (see constants.js). We use the native `https` module with a
+// dedicated agent that trusts those CAs, so no extra HTTP dependency is pulled
+// in.
 // -----------------------------------------------------------------------------
 
 import https from 'node:https';
-import { FREEBOX_ROOT_CA } from './constants.js';
+import tls from 'node:tls';
+import { FREEBOX_CA_CERTS } from './constants.js';
 
-// Reuse a single agent across requests: keep-alive + the Freebox Root CA.
-// `rejectUnauthorized: false` mirrors the original integration: the Freebox
-// certificate is issued for `*.fbxos.fr`, not for `mafreebox.freebox.fr`, so
-// the hostname check would fail even though the CA is trusted.
-const agent = new https.Agent({
-  ca: FREEBOX_ROOT_CA,
-  rejectUnauthorized: false,
-  keepAlive: true,
-});
+// Free's certificates name the box under its own domain (`xxxx.fbxos.fr`) and,
+// on current firmwares, as `mafreebox.freebox.fr` too. Accept either: the
+// chain itself must still lead to one of Free's root CAs, so a device on the
+// LAN impersonating the Freebox with any other certificate is refused.
+const FREEBOX_DOMAIN = /^[a-z0-9-]+\.fbxos\.fr$/i;
+
+/**
+ * Hostname check of the Freebox certificate: the standard one, relaxed to the
+ * box's own `*.fbxos.fr` name.
+ * @param {string} hostname - Host requested (`mafreebox.freebox.fr`).
+ * @param {object} cert - Peer certificate, already verified against the CAs.
+ * @returns {Error|undefined} An error when the certificate names another host.
+ * @example
+ * checkFreeboxIdentity('mafreebox.freebox.fr', socket.getPeerCertificate());
+ */
+export function checkFreeboxIdentity(hostname, cert) {
+  const standard = tls.checkServerIdentity(hostname, cert);
+  if (!standard) {
+    return undefined;
+  }
+  const names = `${(cert && cert.subjectaltname) || ''}`
+    .split(',')
+    .map((entry) => entry.trim().replace(/^DNS:/, ''));
+  if (cert && cert.subject && cert.subject.CN) {
+    names.push(cert.subject.CN);
+  }
+  return names.some((name) => FREEBOX_DOMAIN.test(name)) ? undefined : standard;
+}
+
+// TLS options shared by every connection to the box (API and websocket).
+export const FREEBOX_TLS_OPTIONS = {
+  ca: FREEBOX_CA_CERTS,
+  rejectUnauthorized: true,
+  checkServerIdentity: checkFreeboxIdentity,
+};
+
+// Reuse a single agent across requests: keep-alive + Free's root CAs.
+const agent = new https.Agent({ ...FREEBOX_TLS_OPTIONS, keepAlive: true });
 
 /**
  * Perform an HTTPS request to the Freebox and parse the JSON response.

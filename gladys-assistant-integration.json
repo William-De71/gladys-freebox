@@ -4,12 +4,14 @@
   "name": "Freebox",
   "description": {
     "en": "Control your Freebox home automation devices, players and cameras from Gladys.",
-    "fr": "Contrôlez la domotique, les players et les caméras de votre Freebox depuis Gladys."
+    "fr": "Contrôlez la domotique, les players et les caméras de votre Freebox depuis Gladys.",
+    "de": "Steuern Sie die Hausautomation, die Player und die Kameras Ihrer Freebox mit Gladys.",
+    "es": "Controle la domótica, los reproductores y las cámaras de su Freebox desde Gladys."
   },
   "version": "1.1.0",
   "docker_image": "ghcr.io/william-de71/gladys-freebox:1.1.0",
   "gladys_version": ">=4.86.0",
-  "cover_image": "https://raw.githubusercontent.com/William-De71/gladys-freebox/master/cover.jpg",
+  "cover_image": "https://raw.githubusercontent.com/William-De71/gladys-freebox/main/cover.jpg",
   "categories": ["security", "multimedia", "network"],
   "transports": ["local"],
   "config_schema": [
@@ -18,18 +20,24 @@
       "type": "section",
       "label": {
         "en": "Connect your Freebox",
-        "fr": "Connectez votre Freebox"
+        "fr": "Connectez votre Freebox",
+        "de": "Verbinden Sie Ihre Freebox",
+        "es": "Conecte su Freebox"
       },
       "description": {
         "en": "This integration talks to your Freebox Server over your local network. To pair it, click \"Pair with the Freebox\" below, then physically confirm the authorization on your Freebox Server LCD screen (press the right arrow on the box). You have about 55 seconds to confirm, so stand next to your Freebox before clicking; if the delay expires, just run the action again. The pairing is done only once.",
-        "fr": "Cette intégration communique avec votre Freebox Server sur votre réseau local. Pour l'appairer, cliquez sur « Appairer avec la Freebox » ci-dessous, puis confirmez physiquement l'autorisation sur l'écran LCD de votre Freebox Server (flèche de droite sur la box). Vous disposez d'environ 55 secondes pour confirmer : placez-vous près de votre Freebox avant de cliquer ; si le délai expire, relancez simplement l'action. L'appairage n'est à faire qu'une seule fois."
+        "fr": "Cette intégration communique avec votre Freebox Server sur votre réseau local. Pour l'appairer, cliquez sur « Appairer avec la Freebox » ci-dessous, puis confirmez physiquement l'autorisation sur l'écran LCD de votre Freebox Server (flèche de droite sur la box). Vous disposez d'environ 55 secondes pour confirmer : placez-vous près de votre Freebox avant de cliquer ; si le délai expire, relancez simplement l'action. L'appairage n'est à faire qu'une seule fois.",
+        "de": "Diese Integration kommuniziert über Ihr lokales Netzwerk mit Ihrem Freebox Server. Klicken Sie zum Koppeln unten auf „Mit der Freebox koppeln“ und bestätigen Sie die Berechtigung dann direkt am LCD-Display Ihres Freebox Servers (Pfeil nach rechts an der Box). Sie haben etwa 55 Sekunden Zeit zum Bestätigen: Stellen Sie sich also vor dem Klicken neben Ihre Freebox; ist die Frist abgelaufen, starten Sie die Aktion einfach erneut. Die Kopplung ist nur einmal nötig.",
+        "es": "Esta integración se comunica con su Freebox Server a través de su red local. Para vincularla, haga clic abajo en «Vincular con la Freebox» y confirme después la autorización directamente en la pantalla LCD de su Freebox Server (flecha derecha de la caja). Dispone de unos 55 segundos para confirmar: colóquese junto a su Freebox antes de hacer clic; si el plazo expira, simplemente vuelva a lanzar la acción. La vinculación solo se hace una vez."
       },
       "links": [
         {
           "url": "https://dev.freebox.fr/sdk/os/",
           "label": {
             "en": "Freebox OS API documentation",
-            "fr": "Documentation de l'API Freebox OS"
+            "fr": "Documentation de l'API Freebox OS",
+            "de": "Dokumentation der Freebox-OS-API",
+            "es": "Documentación de la API de Freebox OS"
           }
         }
       ]
@@ -39,11 +47,15 @@
       "type": "section",
       "label": {
         "en": "Grant the permissions",
-        "fr": "Accordez les permissions"
+        "fr": "Accordez les permissions",
+        "de": "Erteilen Sie die Berechtigungen",
+        "es": "Conceda los permisos"
       },
       "description": {
-        "en": "After pairing, open your Freebox settings (Freebox OS > Settings > Access management > Applications > Gladys Assistant) and enable the Home automation, Camera and Player permissions. Without them, the matching devices will not appear during discovery.",
-        "fr": "Après l'appairage, ouvrez les réglages de votre Freebox (Freebox OS > Paramètres > Gestion des accès > Applications > Gladys Assistant) et cochez les permissions Domotique, Caméra et Player. Sans elles, les appareils correspondants n'apparaîtront pas lors de la découverte."
+        "en": "After pairing, open your Freebox settings (Freebox OS > Settings > Access management > Applications > Gladys Assistant) and enable the Home automation, Camera and Player permissions. Without them, the matching devices will not appear during discovery. The \"Reboot the Freebox\" action also needs the Freebox settings modification permission.",
+        "fr": "Après l'appairage, ouvrez les réglages de votre Freebox (Freebox OS > Paramètres > Gestion des accès > Applications > Gladys Assistant) et cochez les permissions Domotique, Caméra et Player. Sans elles, les appareils correspondants n'apparaîtront pas lors de la découverte. L'action « Redémarrer la Freebox » nécessite en plus la permission de modification des réglages de la Freebox.",
+        "de": "Öffnen Sie nach dem Koppeln die Einstellungen Ihrer Freebox (Freebox OS > Settings > Access management > Applications > Gladys Assistant) und aktivieren Sie die Berechtigungen Hausautomation, Kamera und Player. Ohne sie erscheinen die entsprechenden Geräte bei der Suche nicht. Die Aktion „Freebox neu starten“ benötigt zusätzlich die Berechtigung zum Ändern der Freebox-Einstellungen.",
+        "es": "Tras la vinculación, abra los ajustes de su Freebox (Freebox OS > Settings > Access management > Applications > Gladys Assistant) y active los permisos Domótica, Cámara y Player. Sin ellos, los dispositivos correspondientes no aparecerán durante la búsqueda. La acción «Reiniciar la Freebox» necesita además el permiso de modificación de los ajustes de la Freebox."
       }
     }
   ],
@@ -52,15 +64,19 @@
       "key": "pair",
       "label": {
         "en": "Pair with the Freebox",
-        "fr": "Appairer avec la Freebox"
+        "fr": "Appairer avec la Freebox",
+        "de": "Mit der Freebox koppeln",
+        "es": "Vincular con la Freebox"
       },
-      "timeout_seconds": 60
+      "timeout_seconds": 90
     },
     {
       "key": "test_connection",
       "label": {
         "en": "Test the connection",
-        "fr": "Tester la connexion"
+        "fr": "Tester la connexion",
+        "de": "Verbindung testen",
+        "es": "Probar la conexión"
       },
       "timeout_seconds": 30
     },
@@ -68,7 +84,9 @@
       "key": "reboot",
       "label": {
         "en": "Reboot the Freebox",
-        "fr": "Redémarrer la Freebox"
+        "fr": "Redémarrer la Freebox",
+        "de": "Freebox neu starten",
+        "es": "Reiniciar la Freebox"
       },
       "timeout_seconds": 30
     },
@@ -76,7 +94,9 @@
       "key": "unpair",
       "label": {
         "en": "Unpair the Freebox",
-        "fr": "Désappairer la Freebox"
+        "fr": "Désappairer la Freebox",
+        "de": "Kopplung aufheben",
+        "es": "Desvincular la Freebox"
       },
       "timeout_seconds": 15
     }

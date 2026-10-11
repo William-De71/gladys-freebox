@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 300" width="880" height="300" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title>Which Freebox Player API each Gladys command uses</title>
+  <rect x="0" y="0" width="880" height="300" rx="14" fill="#ffffff" stroke="#d0d7de"/>
+  <text x="440" y="36" text-anchor="middle" font-size="15" font-weight="600" fill="#24292f">A Freebox Player command goes to one of four endpoints</text>
+
+  <!-- status / volume -->
+  <rect x="25" y="60" width="195" height="190" rx="10" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.5"/>
+  <text x="122" y="86" text-anchor="middle" font-size="13" font-weight="600" fill="#116329">status + volume</text>
+  <text x="122" y="104" text-anchor="middle" font-size="11" fill="#116329">documented</text>
+  <g font-size="12" fill="#24292f">
+    <text x="42" y="134">• Power state (read)</text>
+    <text x="42" y="156">• Volume</text>
+    <text x="42" y="178">• Mute (toggles)</text>
+  </g>
+  <text x="122" y="226" text-anchor="middle" font-size="11" fill="#57606a">read back every 30 s</text>
+
+  <!-- open -->
+  <rect x="240" y="60" width="195" height="190" rx="10" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.5"/>
+  <text x="337" y="86" text-anchor="middle" font-size="13" font-weight="600" fill="#116329">control/open</text>
+  <text x="337" y="104" text-anchor="middle" font-size="11" fill="#116329">documented</text>
+  <g font-size="12" fill="#24292f">
+    <text x="257" y="134">• Channel (by number)</text>
+  </g>
+  <text x="337" y="234" text-anchor="middle" font-size="11" fill="#57606a">the reliable way to zap</text>
+
+  <!-- mediactrl -->
+  <rect x="455" y="60" width="195" height="190" rx="10" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.5"/>
+  <text x="552" y="86" text-anchor="middle" font-size="13" font-weight="600" fill="#116329">control/mediactrl</text>
+  <text x="552" y="104" text-anchor="middle" font-size="11" fill="#116329">documented</text>
+  <g font-size="12" fill="#24292f">
+    <text x="472" y="134">• Play / Pause (one toggle)</text>
+    <text x="472" y="156">• Stop</text>
+    <text x="472" y="178">• Previous / Next</text>
+    <text x="472" y="200">• Rewind / Fast forward *</text>
+  </g>
+  <text x="552" y="226" text-anchor="middle" font-size="11" fill="#57606a">acts on the media playing</text>
+  <text x="552" y="242" text-anchor="middle" font-size="10" fill="#57606a">* undocumented commands</text>
+
+  <!-- remote -->
+  <rect x="670" y="60" width="185" height="190" rx="10" fill="#fff8c5" stroke="#bf8700" stroke-width="1.5"/>
+  <text x="762" y="86" text-anchor="middle" font-size="13" font-weight="600" fill="#6b4600">control/remote</text>
+  <text x="762" y="104" text-anchor="middle" font-size="11" fill="#6b4600">undocumented</text>
+  <g font-size="12" fill="#24292f">
+    <text x="686" y="134">• Power key (on / off)</text>
+    <text x="686" y="156">• Arrows, OK, Back</text>
+    <text x="686" y="178">• Home, Guide, Info</text>
+    <text x="686" y="200">• Channel up / down, TV, Rec</text>
+  </g>
+  <text x="762" y="234" text-anchor="middle" font-size="11" fill="#6b4600">may break with an update</text>
+
+  <text x="440" y="280" text-anchor="middle" font-size="11" fill="#57606a">Players exposing the local API only (Delta, Revolution). Android TV players (Player POP) report api_available: false and are skipped.</text>
+</svg>

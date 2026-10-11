@@ -3,7 +3,7 @@
 // -----------------------------------------------------------------------------
 
 // Local URL of the Freebox Server. Reachable on the LAN, always over HTTPS with
-// the Freebox self-signed certificate (see FREEBOX_ROOT_CA below).
+// the Freebox self-signed certificate (see FREEBOX_CA_CERTS below).
 export const FREEBOX_LOCAL_URL = 'https://mafreebox.freebox.fr';
 
 // Application identity declared to the Freebox during pairing. `app_id` MUST be
@@ -35,8 +35,11 @@ export const PLAYER = {
 };
 
 // HTTPS access to the Freebox: https://dev.freebox.fr/sdk/os/#https-access
-// The Freebox exposes a self-signed certificate chained to this root CA.
-export const FREEBOX_ROOT_CA = `-----BEGIN CERTIFICATE-----
+// The Freebox serves a certificate issued by Free's own authorities. Older
+// boxes chain to the RSA "Freebox Root CA"; recent ones (Delta, Pop, Ultra)
+// to the "Freebox ECC Root CA" through an intermediate they send along. Both
+// are trusted, so the connection is verified whatever the model.
+const FREEBOX_RSA_ROOT_CA = `-----BEGIN CERTIFICATE-----
 MIIFmjCCA4KgAwIBAgIJAKLyz15lYOrYMA0GCSqGSIb3DQEBCwUAMFoxCzAJBgNV
 BAYTAkZSMQ8wDQYDVQQIDAZGcmFuY2UxDjAMBgNVBAcMBVBhcmlzMRAwDgYDVQQK
 DAdGcmVlYm94MRgwFgYDVQQDDA9GcmVlYm94IFJvb3QgQ0EwHhcNMTUwNzMwMTUw
@@ -68,3 +71,21 @@ JJlI61gldaT5Ci1aLbvVcJtdeGhElf7pOE9JrXINpP3NOJJaUSueAvxyj/WWoo0v
 d5jENIZChM8TnDXJzqc+mu00cI3icn9bV9flYCXLTIsprB21wVSMh0XeBGylKxeB
 S27oDfFq04XSox7JM9HdTt2hLK96x1T7FpFrBTnALzb7vHv9MhXqAT90fPR/8A==
 -----END CERTIFICATE-----`;
+
+const FREEBOX_ECC_ROOT_CA = `-----BEGIN CERTIFICATE-----
+MIICWTCCAd+gAwIBAgIJAMaRcLnIgyukMAoGCCqGSM49BAMCMGExCzAJBgNVBAYT
+AkZSMQ8wDQYDVQQIDAZGcmFuY2UxDjAMBgNVBAcMBVBhcmlzMRMwEQYDVQQKDApG
+cmVlYm94IFNBMRwwGgYDVQQDDBNGcmVlYm94IEVDQyBSb290IENBMB4XDTE1MDkw
+MTE4MDIwN1oXDTM1MDgyNzE4MDIwN1owYTELMAkGA1UEBhMCRlIxDzANBgNVBAgM
+BkZyYW5jZTEOMAwGA1UEBwwFUGFyaXMxEzARBgNVBAoMCkZyZWVib3ggU0ExHDAa
+BgNVBAMME0ZyZWVib3ggRUNDIFJvb3QgQ0EwdjAQBgcqhkjOPQIBBgUrgQQAIgNi
+AASCjD6ZKn5ko6cU5Vxh8GA1KqRi6p2GQzndxHtuUmwY8RvBbhZ0GIL7bQ4f08ae
+JOv0ycWjEW0fyOnAw6AYdsN6y1eNvH2DVfoXQyGoCSvXQNAUxla+sJuLGICRYiZz
+mnijYzBhMB0GA1UdDgQWBBTIB3c2GlbV6EIh2ErEMJvFxMz/QTAfBgNVHSMEGDAW
+gBTIB3c2GlbV6EIh2ErEMJvFxMz/QTAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB
+/wQEAwIBhjAKBggqhkjOPQQDAgNoADBlAjA8tzEMRVX8vrFuOGDhvZr7OSJjbBr8
+gl2I70LeVNGEXZsAThUkqj5Rg9bV8xw3aSMCMQCDjB5CgsLH8EdZmiksdBRRKM2r
+vxo6c0dSSNrr7dDN+m2/dRvgoIpGL2GauOGqDFY=
+-----END CERTIFICATE-----`;
+
+export const FREEBOX_CA_CERTS = [FREEBOX_RSA_ROOT_CA, FREEBOX_ECC_ROOT_CA];

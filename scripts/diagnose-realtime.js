@@ -25,8 +25,8 @@
 
 import crypto from 'node:crypto';
 import https from 'node:https';
-import { freeboxRequest } from '../src/freebox/httpClient.js';
-import { FREEBOX_LOCAL_URL, APP_IDENTITY, FREEBOX_ROOT_CA } from '../src/freebox/constants.js';
+import { freeboxRequest, FREEBOX_TLS_OPTIONS } from '../src/freebox/httpClient.js';
+import { FREEBOX_LOCAL_URL, APP_IDENTITY } from '../src/freebox/constants.js';
 
 const [, , tokenOrFlag, ...nodeArgs] = process.argv;
 const PAIRING_MODE = tokenOrFlag === '--pair';
@@ -301,8 +301,7 @@ function listenWebsocket(baseApiUrl, sessionToken, events, { runForMs, quiet = f
 
   return new Promise((resolve) => {
     const request = https.request(wsUrl, {
-      ca: FREEBOX_ROOT_CA,
-      rejectUnauthorized: false,
+      ...FREEBOX_TLS_OPTIONS,
       headers: {
         Connection: 'Upgrade',
         Upgrade: 'websocket',

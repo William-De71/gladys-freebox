@@ -25,6 +25,7 @@ import {
   startCameraPush,
 } from './src/devices.js';
 import { forLog } from './src/externalId.js';
+import { MESSAGES } from './src/messages.js';
 
 const gladys = new GladysIntegration();
 const client = new FreeboxClient();
@@ -49,12 +50,7 @@ async function publishDevicesIfPaired() {
   const appToken = await getAppToken();
   if (!appToken) {
     logger.info('Freebox not paired yet: use the "Pair with the Freebox" action.');
-    await gladys
-      .setConnectionStatus(false, {
-        en: 'Freebox not paired. Click "Pair with the Freebox".',
-        fr: 'Freebox non appairée. Cliquez sur « Appairer avec la Freebox ».',
-      })
-      .catch(() => {});
+    await gladys.setConnectionStatus(false, MESSAGES.notPaired).catch(() => {});
     return;
   }
   const devices = await buildDiscoveredDevices(gladys, client, appToken);
@@ -137,10 +133,7 @@ gladys.onAction('pair', async () => {
   try {
     const existing = await getAppToken();
     if (existing) {
-      return {
-        en: 'The Freebox is already paired. Use "Unpair" first to pair again.',
-        fr: 'La Freebox est déjà appairée. Utilisez « Désappairer » pour réappairer.',
-      };
+      return MESSAGES.alreadyPaired;
     }
 
     const { appToken, trackId } = await client.requestAuthorization();
@@ -149,22 +142,23 @@ gladys.onAction('pair', async () => {
 
     // Persist the app token (key outside the config_schema).
     await gladys.setConfig({ [APP_TOKEN_CONFIG_KEY]: appToken });
-
-    // Publish the devices right away.
-    await publishDevicesIfPaired();
-
-    return {
-      en: 'Freebox paired successfully! You can now create your devices.',
-      fr: 'Freebox appairée avec succès ! Vous pouvez maintenant créer vos appareils.',
-    };
   } catch (e) {
     logger.error('Freebox pairing failed', e);
     await gladys.setConnectionStatus(false).catch(() => {});
-    return {
-      en: `Pairing failed: ${e.message}`,
-      fr: `Échec de l'appairage : ${e.message}`,
-    };
+    return MESSAGES.pairingFailed(e.message);
   }
+
+  // The pairing itself is done and saved at this point: a failure to list the
+  // devices (permissions not granted yet, a slow box) must not be reported as
+  // a failed pairing, which would send the user back to the LCD screen for
+  // nothing. A scan from the Discover tab retries the publication.
+  try {
+    await publishDevicesIfPaired();
+  } catch (e) {
+    logger.warn(`Freebox paired, but publishing the devices failed: ${e.message}`);
+    return MESSAGES.pairedNoDevices;
+  }
+  return MESSAGES.paired;
 });
 
 // --- Manifest action: test the connection ------------------------------------
@@ -172,22 +166,13 @@ gladys.onAction('test_connection', async () => {
   try {
     const appToken = await getAppToken();
     if (!appToken) {
-      return {
-        en: 'Freebox not paired. Click "Pair with the Freebox" first.',
-        fr: "Freebox non appairée. Cliquez d'abord sur « Appairer avec la Freebox ».",
-      };
+      return MESSAGES.notPairedYet;
     }
     await client.openSession(appToken);
     const devices = await buildDiscoveredDevices(gladys, client, appToken);
-    return {
-      en: `Connection OK: ${devices.length} device(s) available on the Freebox.`,
-      fr: `Connexion OK : ${devices.length} appareil(s) disponible(s) sur la Freebox.`,
-    };
+    return MESSAGES.connectionOk(devices.length);
   } catch (e) {
-    return {
-      en: `Connection failed: ${e.message}`,
-      fr: `Échec de la connexion : ${e.message}`,
-    };
+    return MESSAGES.connectionFailed(e.message);
   }
 });
 
@@ -197,22 +182,13 @@ gladys.onAction('reboot', async () => {
   try {
     const appToken = await getAppToken();
     if (!appToken) {
-      return {
-        en: 'Freebox not paired. Click "Pair with the Freebox" first.',
-        fr: "Freebox non appairée. Cliquez d'abord sur « Appairer avec la Freebox ».",
-      };
+      return MESSAGES.notPairedYet;
     }
     await client.reboot(appToken);
-    return {
-      en: 'Reboot requested. Your Freebox will restart in a few seconds.',
-      fr: 'Redémarrage demandé. Votre Freebox va redémarrer dans quelques secondes.',
-    };
+    return MESSAGES.rebootRequested;
   } catch (e) {
     logger.error('Freebox reboot failed', e);
-    return {
-      en: `Reboot failed: ${e.message}`,
-      fr: `Échec du redémarrage : ${e.message}`,
-    };
+    return MESSAGES.rebootFailed(e.message);
   }
 });
 
@@ -222,10 +198,7 @@ gladys.onAction('unpair', async () => {
   await gladys.setConfig({ [APP_TOKEN_CONFIG_KEY]: '' });
   client.reset();
   await gladys.setConnectionStatus(false).catch(() => {});
-  return {
-    en: 'Freebox unpaired. The stored token has been removed.',
-    fr: 'Freebox désappairée. Le token stocké a été supprimé.',
-  };
+  return MESSAGES.unpaired;
 });
 
 // --- Configuration updated by the user ---------------------------------------
@@ -253,12 +226,7 @@ gladys.on('connected', async () => {
     stopCameraPush = startCameraPush(gladys);
   } catch (err) {
     logger.error('Post-connection initialization failed', err);
-    await gladys
-      .setConnectionStatus(false, {
-        en: 'Initialization failed, check the integration logs.',
-        fr: "L'initialisation a échoué, consultez les logs de l'intégration.",
-      })
-      .catch(() => {});
+    await gladys.setConnectionStatus(false, MESSAGES.initFailed).catch(() => {});
   }
 });
 

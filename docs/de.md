@@ -1,0 +1,70 @@
+# Freebox-Integration
+
+Mit dieser Integration steuern Sie Ihre **Freebox** aus Gladys Assistant heraus, direkt über Ihr lokales Netzwerk und ganz ohne Cloud.
+
+## Funktionen
+
+- **Freebox-Hausautomation**: Öffnungssensoren, Bewegungsmelder, Akkustand, Sabotagekontakte, Rollläden (Zustand und Position), Alarmzentrale (Scharfschalten, Unscharfschalten, Zustand) und Alarm-Fernbedienung.
+- **Freebox Player** (kompatible Modelle, siehe unten): Ein/Aus, Lautstärke, Stummschaltung, **Senderwahl über die Sendernummer**, Wiedergabesteuerung (Wiedergabe/Pause, Stopp, zurück, weiter, Rück- und Vorspulen) sowie Tasten der Fernbedienung (Sender auf/ab, TV, Startseite, Programmführer, Info, Aufnahme, Pfeiltasten, OK und Zurück).
+
+  ℹ️ **„Weiter“ / „Zurück“ wechseln nicht den Sender**: Es sind Wiedergabebefehle (Titel oder Kapitel des laufenden Inhalts). Zum Umschalten verwenden Sie **„Sender“** (direkte Nummer) oder **„Sender auf“** / **„Sender ab“**.
+
+  ℹ️ **„Wiedergabe“ und „Pause“ wirken als Umschalter**: Die Freebox-API bietet für beide nur einen einzigen Befehl `play_pause`, beide Tasten bewirken also dasselbe.
+
+  ℹ️ **„Stumm“ ist ebenfalls ein Umschalter**: Jeder Druck schaltet den Ton je nach tatsächlichem Zustand des Players stumm oder wieder ein; dieser wird direkt vor dem Senden des Befehls gelesen.
+
+  ⚠️ **Einige Tasten sind nicht garantiert.** Nur Lautstärke, Stummschaltung, Senderwahl per Nummer und die wichtigsten Wiedergabebefehle beruhen auf der von Free dokumentierten API. Ein/Aus und die Navigationstasten (Pfeile, OK, Zurück, Startseite, Programmführer, Info, Sender auf/ab) simulieren einen Tastendruck auf der virtuellen Fernbedienung, einem **nicht dokumentierten** Endpunkt, der nach einem Freebox-Update aufhören kann zu funktionieren.
+
+  ℹ️ Wiedergabebefehle hängen davon ab, was der Player gerade abspielt: Auf der Startseite ohne aktiven Inhalt können sie **wirkungslos** bleiben. Starten Sie dann zuerst mit den Navigationstasten einen Sender oder einen Inhalt.
+
+- **Freebox-Kameras**: Bild im Dashboard (jede Minute aktualisiert) und auf Abruf, per ffmpeg aus dem Videostream aufgenommen.
+- **Aktionen**: Koppeln, Verbindung testen, Freebox neu starten und Kopplung aufheben, direkt im Konfigurationsbildschirm.
+
+## Voraussetzungen
+
+- Eine Freebox (Delta, Ultra, Pop, Revolution…) mit aktiviertem Hausautomations-Server.
+- Gladys Assistant und diese Integration müssen sich im **selben lokalen Netzwerk** wie die Freebox befinden (Zugriff auf `mafreebox.freebox.fr`).
+
+## Kopplung
+
+1. Öffnen Sie in Gladys den Konfigurationsbildschirm der Freebox-Integration.
+2. Klicken Sie auf **„Mit der Freebox koppeln“**.
+3. Gehen Sie zu Ihrem Freebox Server: Das LCD-Display zeigt eine Berechtigungsanfrage. Drücken Sie zur Bestätigung den **Pfeil nach rechts**.
+4. Die Kopplung wird gespeichert: Sie ist nur einmal nötig.
+
+⏱️ **Sie haben etwa 55 Sekunden**, um den Pfeil nach rechts am LCD-Display zu drücken. Danach schlägt die Kopplung mit der Meldung „authorization was not confirmed on the LCD screen“ fehl: Starten Sie die Aktion **„Mit der Freebox koppeln“** einfach erneut. Stellen Sie sich **vor** dem Klick neben Ihre Freebox.
+
+## Zu aktivierende Berechtigungen (wichtig)
+
+Öffnen Sie nach der Kopplung die Einstellungen Ihrer Freebox:
+
+**Freebox OS > Settings > Access management > Applications > Gladys Assistant**
+
+(in der französischen Oberfläche: Paramètres > Gestion des accès > Applications) und **aktivieren** Sie folgende Berechtigungen:
+
+- **Verwaltung von Hausautomation und Alarm** (Sensoren, Rollläden, Alarm)
+- **Zugriff auf die Kameras**
+- **Steuerung des Freebox Player**
+- **Änderung der Freebox-Einstellungen**: nur für die Aktion „Freebox neu starten“ nötig.
+
+⚠️ Ohne diese Häkchen erscheinen die entsprechenden Geräte bei der Suche **nicht**. Das ist die häufigste Ursache für ein fehlendes Gerät.
+
+Sobald die Berechtigungen erteilt sind, starten Sie eine Gerätesuche: Gladys listet alle auf Ihrer Freebox gefundenen Geräte auf. Wählen Sie die aus, die Sie anlegen möchten.
+
+## Einschränkung Freebox Player POP / Android TV
+
+Der **Freebox Player POP** (und andere Player auf Basis von **Android TV**) ist mit dieser Integration **nicht steuerbar**: Free stellt auf diesen Modellen keine lokale Steuer-API bereit (der Player meldet `api_available: false` und wird daher übersprungen). Um einen Player POP zu steuern, verwenden Sie eine **Android-TV**-Integration (ADB-Protokoll), was außerhalb des Umfangs dieser Integration liegt.
+
+Die Player der Freebox **Delta** und **Revolution** (die die lokale Player-API bereitstellen) bleiben voll steuerbar.
+
+## Freebox neu starten
+
+Die Aktion **„Freebox neu starten“** im Konfigurationsbildschirm startet Ihren Freebox Server neu. Eine Aktion zum Ausschalten gibt es nicht: Die Freebox-API bietet nur den Neustart (eine ausgeschaltete Box ließe sich aus der Ferne nicht wieder einschalten).
+
+## Fehlerbehebung
+
+- **„Freebox not found on the local network“** (oder `ENOTFOUND mafreebox.freebox.fr`): Gladys erreicht `mafreebox.freebox.fr` nicht. Prüfen Sie, ob Gladys hinter der Freebox läuft (und nicht hinter einem anderen Router) und ob diese Adresse in Ihrem Netzwerk aufgelöst wird.
+- **Ein Gerät fehlt bei der Suche**: Die passende Berechtigung ist in Freebox OS nicht aktiviert (siehe oben). Aktivieren Sie sie und starten Sie die Suche erneut.
+- **„Freebox session could not be opened“**: Die Berechtigung wurde in Freebox OS widerrufen. Klicken Sie auf **„Kopplung aufheben“** und dann erneut auf **„Mit der Freebox koppeln“**.
+- **Neustart abgelehnt**: Die Berechtigung „Änderung der Freebox-Einstellungen“ ist nicht aktiviert.
+- **Kein Kamerabild**: Prüfen Sie, ob die Kamera ihren Stream in Freebox OS anzeigt. Das Bild wird jede Minute aktualisiert; die Live-Ansicht nimmt bei Bedarf ein neues auf.
