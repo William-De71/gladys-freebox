@@ -1,3 +1,9 @@
+## [1.2.0](https://github.com/William-De71/gladys-freebox/compare/v1.1.0...v1.2.0) (2026-10-11)
+
+### Features
+
+* verify the Freebox certificate, translate into de/es and document with diagrams ([bcc5944](https://github.com/William-De71/gladys-freebox/commit/bcc594436d46680282e00e7735915f78488c9177))
+
 ## [1.1.0](https://github.com/William-De71/gladys-freebox/compare/v1.0.8...v1.1.0) (2026-08-20)
 
 ### Features
