@@ -18,6 +18,7 @@ Esta integración le permite controlar su **Freebox** desde Gladys Assistant, di
   ℹ️ Los comandos de reproducción dependen de lo que el player esté reproduciendo: en la pantalla de inicio, sin contenido activo, pueden **no tener efecto**. Use entonces las teclas de navegación para lanzar un canal o un contenido.
 
 - **Cámaras Freebox**: imagen mostrada en el panel (actualizada cada minuto) y bajo demanda, capturada del flujo de vídeo con ffmpeg.
+- **Conexión a internet**: un dispositivo **Freebox Server** con el estado de la conexión y las velocidades de bajada y de subida, para vigilar su línea y lanzar una escena cuando se cae.
 - **Acciones**: vincular, probar la conexión, reiniciar la Freebox y desvincular, directamente desde la pantalla de configuración.
 
 ## Requisitos
@@ -51,6 +52,22 @@ Tras la vinculación, abra los ajustes de su Freebox:
 
 Una vez concedidos los permisos, lance una búsqueda de dispositivos: Gladys mostrará todos los dispositivos detectados en su Freebox. Elija los que desee crear.
 
+## Conexión a internet
+
+El dispositivo **Freebox Server** muestra el estado de su conexión a internet y lo que transporta en este momento:
+
+| Función             | Valor                                                                  |
+| ------------------- | ---------------------------------------------------------------------- |
+| Internet connection | `up` (activa), `down` (inactiva), `going_up` o `going_down` (en curso) |
+| Download rate       | velocidad de bajada actual, en Mbit/s                                  |
+| Upload rate         | velocidad de subida actual, en Mbit/s                                  |
+
+Se lee cada 30 segundos y no necesita ningún permiso en Freebox OS. Para recibir un aviso cuando se cae la línea, cree una escena con el desencadenante **Freebox Server → Internet connection** y el texto `down`; una segunda escena sobre `up` le indica cuándo vuelve.
+
+ℹ️ **¿Ya usa la integración?** Este dispositivo es nuevo: abra la pestaña **Descubrir**, haga clic en **Buscar** y añada **Freebox Server**. Sus dispositivos existentes no cambian.
+
+ℹ️ Los valores se envían ahora a Gladys **cuando cambian**: un sensor que sigue cerrado ya no añade un punto cada 30 segundos a su historial, y un dispositivo que añade recibe de inmediato sus valores actuales.
+
 ## Limitación de los Freebox Player POP / Android TV
 
 Los **Freebox Player POP** (y otros players basados en **Android TV**) **no se pueden controlar** con esta integración: Free no ofrece la API de control local en esos modelos (el player se anuncia con `api_available: false` y por tanto se ignora). Para controlar un Player POP, use una integración **Android TV** (protocolo ADB), fuera del alcance de esta integración.
@@ -68,3 +85,4 @@ La acción **«Reiniciar la Freebox»** de la pantalla de configuración reinici
 - **«Freebox session could not be opened»**: la autorización se revocó en Freebox OS. Haga clic en **«Desvincular la Freebox»** y luego de nuevo en **«Vincular con la Freebox»**.
 - **Reinicio rechazado**: el permiso «Modificación de los ajustes de la Freebox» no está marcado.
 - **Sin imagen de cámara**: compruebe que la cámara muestra su flujo en Freebox OS. La imagen se actualiza cada minuto; la vista en directo captura una nueva bajo demanda.
+- **No aparece el dispositivo «Freebox Server»**: llegó con esta versión. Lance una búsqueda desde la pestaña **Descubrir** y añádalo.

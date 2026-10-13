@@ -1,0 +1,7 @@
+Gladys Freebox integration
+Copyright 2026 William Deren
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Freebox is a trademark of Free. This integration talks to the Freebox over its
+local Freebox OS API and is not affiliated with or endorsed by Free.

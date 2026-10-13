@@ -1,95 +1,279 @@
-# gladys-freebox
+# Gladys Freebox
 
-![Freebox integration for Gladys Assistant](cover.jpg)
+**English** · [Français](README.fr.md) · [Deutsch](README.de.md) · [Español](README.es.md)
 
-External [Gladys Assistant](https://gladysassistant.com) integration to control your **Freebox** from Gladys: home automation sensors, roller shutters and alarm, Freebox Players (power, volume, channels, media, remote keys) and cameras.
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/William-De71/gladys-freebox?sort=semver)](https://github.com/William-De71/gladys-freebox/releases)
+[![CI](https://img.shields.io/github/actions/workflow/status/William-De71/gladys-freebox/release.yml?branch=main&label=CI)](https://github.com/William-De71/gladys-freebox/actions/workflows/release.yml)
+[![Gladys](https://img.shields.io/badge/Gladys-%E2%89%A5%204.86.0-2f6fb5)](https://gladysassistant.com)
 
-Everything stays **on your local network**: the integration talks to the Freebox OS API on `mafreebox.freebox.fr`, with no Free account and no cloud.
+![Freebox for Gladys Assistant](cover.jpg)
 
-📖 User documentation: [English](docs/en.md) — [Français](docs/fr.md) — [Deutsch](docs/de.md) — [Español](docs/es.md)
+External [Gladys Assistant](https://gladysassistant.com) integration bringing your **Freebox** into Gladys: home
+automation sensors, roller shutters and alarm, Freebox Players (power, volume, channels, media, remote keys),
+cameras, and the state of the internet connection with its download and upload rates. Built on
+`@gladysassistant/integration-sdk` 0.15.
 
-## How it works
+Everything stays **on your local network**: the integration talks to the Freebox OS API on `mafreebox.freebox.fr`,
+with no Free account and no cloud.
 
-![The integration runs in its own container next to Gladys and talks to the Freebox Server over HTTPS; the box exposes home automation, Players and cameras, whose stream ffmpeg reads](docs/images/overview.svg)
+User documentation: [English](docs/en.md) · [Français](docs/fr.md) · [Deutsch](docs/de.md) · [Español](docs/es.md).
 
-| Freebox side                                | Gladys support                                                      |
-| ------------------------------------------- | ------------------------------------------------------------------- |
-| Opening / motion sensors                    | Binary sensors, usable as scene triggers                            |
-| Battery, tamper contact                     | Battery level (%), tamper binary sensor                             |
-| Roller shutters (`store`, `store_slider`)   | Open / stop / close buttons and position (%)                        |
-| Alarm control panel                         | Arm (main / secondary), disarm, skip buttons and textual state      |
-| Alarm keyfob                                | Button feature: one click type per physical button                  |
-| Players exposing the local API              | Power, volume, mute, channel number, media control, remote keys     |
-| Players without it (Player POP, Android TV) | Skipped, with an explicit log line                                  |
-| Cameras                                     | Dashboard image every minute, live view on demand (ffmpeg from HLS) |
+> Community integration, not affiliated with or endorsed by Free.
 
-Every device is read every 30 seconds, except cameras: an ffmpeg capture takes several seconds, longer than the 5-second poll acknowledgement, so camera images are pushed by a loop of their own and captured on demand for the live view.
+## Contents
 
-## Pairing
+- [Features](#features)
+- [Architecture](#architecture)
+- [Devices](#devices)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Pairing](#pairing)
+- [Freebox Players](#freebox-players)
+- [Scenes](#scenes)
+- [Transport](#transport)
+- [Development](#development)
+- [Release and commit convention](#release-and-commit-convention)
+- [Troubleshooting](#troubleshooting)
+- [Design notes](#design-notes)
+- [Contributing](#contributing)
+- [License](#license)
 
-![Click "Pair with the Freebox" in Gladys, press the right arrow on the Freebox LCD within about 55 seconds, tick the permissions in Freebox OS, then scan from Gladys](docs/images/pairing.svg)
+## Features
 
-The Freebox app token is obtained through the **"Pair with the Freebox"** manifest action and persisted through `gladys.setConfig()` under a key that is **not** declared in the `config_schema`, then reloaded on every connection. Three more actions are exposed: **Test the connection**, **Reboot the Freebox** (the API offers no shutdown) and **Unpair**.
+- **Home automation**: opening and motion sensors, tamper contacts, battery levels, roller shutters (open / stop /
+  close and position), alarm control panel (arm, disarm, skip the delay, state) and alarm keyfob.
+- **Freebox Players** exposing the local API: power, volume, mute, channel by number, media control and remote keys.
+- **Cameras**: dashboard image refreshed every minute, fresh capture for the live view (ffmpeg reads the HLS stream).
+- **Internet connection**: a **Freebox Server** device with the state of the connection (`up`, `down`, `going_up`,
+  `going_down`) and the download and upload rates in Mbit/s, to watch the line and trigger scenes when it drops.
+- **Configuration actions**: pair, test the connection, reboot the Freebox, unpair.
+- **Four languages** for the configuration screen and the action results: English, French, German, Spanish.
 
-The pairing is saved as soon as the box grants it: if listing the devices fails right after (permissions not ticked yet), the action says so instead of reporting a failed pairing.
-
-## Freebox Players
-
-![Power state, volume and mute go through the documented status and volume endpoints, channel numbers through control/open, media commands through control/mediactrl, and power, navigation and relative zapping through the undocumented control/remote](docs/images/player.svg)
-
-The Freebox Player API is versioned on its own (`/player/{id}/api/v{n}`), and only part of what a remote does is documented. Commands that rely on the virtual remote (`control/remote`) are kept because no documented endpoint reaches the navigation keys, but the user documentation flags them as best-effort.
+Every state is published **when it changes**, and a device just added in Gladys gets its current values at once. The
+integration declares no dashboard widget of its own: devices use the boxes of Gladys.
 
 ## Architecture
 
-```
-index.js                     SDK wiring: handlers, manifest actions, lifecycle
-src/
-  devices.js                 discovery / poll / setValue / camera push
-  externalId.js              `ext:<selector>:` prefix, added and stripped
-  messages.js                user-facing messages, in en / fr / de / es
-  freebox/
-    FreeboxClient.js         discovery, pairing, shared session, requests
-    httpClient.js            native HTTPS client, verified against Free's CAs
-    constants.js             app identity, endpoints, Free's root CAs
-    convert.js               Freebox -> Gladys device/feature conversion
-    deviceMapping.js         function <-> feature mapping + value transforms
-    camera.js                ffmpeg snapshot capture
-scripts/
-  diagnose-realtime.js       standalone probe of the box (websocket, fast poll)
+![Architecture: the integration runs in its own container next to Gladys and talks to the Freebox Server over HTTPS; the box exposes the internet connection, home automation, Players and cameras, whose stream ffmpeg reads (illustration)](docs/assets/overview.svg)
+
+```mermaid
+flowchart LR
+  G[(Gladys)] -- "scan, poll, setValue, getImage" --> I[integration]
+  I -- "devices, states, camera images" --> G
+  I -- "HTTPS, Free's root CAs, one shared session" --> F[Freebox Server]
+  F --> H[home automation: tileset, endpoints]
+  F --> P[Players: status, volume, mediactrl, open, remote]
+  F --> C[connection: state and rates]
+  I -- "ffmpeg reads the HLS stream" --> K[cameras]
 ```
 
-## Design notes
+From the scan to a command:
 
-**The Freebox certificate is verified.** The box serves a certificate issued by Free's own authorities: the RSA "Freebox Root CA" on older boxes, the "Freebox ECC Root CA" (through an intermediate) on current ones. Both are bundled and the chain is checked; the hostname check also accepts the box's own `*.fbxos.fr` name. A device on the LAN impersonating the Freebox is refused.
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant G as Gladys
+  participant I as Integration
+  participant F as Freebox
+  U->>G: Configuration → Pair with the Freebox
+  G->>I: action pair
+  I->>F: login/authorize
+  U->>F: right arrow on the LCD screen
+  I->>F: login/authorize/{track_id} until granted
+  I->>G: app token saved, devices published
+  U->>G: Discover → Scan
+  G->>I: scan request
+  I->>F: home/tileset/all, player, (session)
+  I->>G: publishDiscoveredDevices
+  U->>G: Add a device
+  G->>I: device created
+  I->>F: home/tileset/{node} (or player status, connection)
+  I->>G: current states (changes only from then on)
+  U->>G: Close the shutter (dashboard or scene)
+  G->>I: setValue
+  I->>F: PUT home/endpoints/{node}/{endpoint}
+  G->>I: poll every 30 s
+  I->>G: changed states
+```
 
-**One session for every request.** Gladys polls all devices on the same tick. The login (challenge + HMAC-SHA1) is shared between concurrent callers, and a request that finds its session expired reuses a session another request already reopened.
+## Devices
 
-**External ids are prefixed only at the edge.** The core requires `ext:<selector>:` on every published id. The code keeps the native Freebox scheme (`freebox:{node}:{endpoint}`, `freebox:player:{id}:{type}`) and converts in `externalId.js`.
+| Freebox side                                | Gladys feature (category / type)                                       | Polling    |
+| ------------------------------------------- | ---------------------------------------------------------------------- | ---------- |
+| Opening sensor                              | `opening-sensor` / `binary` (1 = closed)                               | every 30 s |
+| Motion sensor                               | `motion-sensor` / `binary` (1 = motion)                                | every 30 s |
+| Battery, tamper contact                     | `battery` / `integer` (%), `tamper` / `binary`                         | every 30 s |
+| Roller shutters (`store`, `store_slider`)   | `shutter` / `state` (open / stop / close), `shutter` / `position` (%)  | every 30 s |
+| Alarm control panel                         | `button` / `push` (arm, secondary arm, disarm, skip), `text` / `text`  | every 30 s |
+| Alarm keyfob                                | `button` / `click` (best effort: a press between two polls is missed)  | every 30 s |
+| Players exposing the local API              | `television` / power, volume, mute, channel, media and remote keys     | every 30 s |
+| Players without it (Player POP, Android TV) | skipped, with an explicit log line                                     | —          |
+| Cameras                                     | `camera` / `image` (dashboard image every minute, live view on demand) | own loop   |
+| Freebox Server                              | `text` / `text` connection state, `datarate` / `rate` download, upload | every 30 s |
 
-**Selectors are explicit.** The core builds a feature selector from its name and that column is unique across the whole table: plain names like "Volume" or "Position" would collide with another integration, so selectors are derived from the node and endpoint ids.
+External ids keep the native Freebox scheme (`freebox:{node}:{endpoint}`, `freebox:player:{id}:{type}`,
+`freebox:server:{feature}`), prefixed with `ext:<selector>:` as Gladys requires. Selectors are derived from the same
+ids, so two homonyms never collide.
 
-**A value the box does not have is not published.** The Freebox answers `null` on endpoints it never refreshed (a battery before its first report): readers return `undefined` and the poll skips them rather than raising a false "empty battery".
+## Installation
+
+1. In Gladys (`>= 4.86.0`), open **Integrations**, find **Freebox** in the catalog and install it. Gladys pulls the
+   multi-arch image (`linux/amd64`, `linux/arm64`) from `ghcr.io/william-de71/gladys-freebox`.
+2. Gladys must run **behind the Freebox** (same local network), so that `mafreebox.freebox.fr` resolves to the box.
+3. Pair the integration (see [Pairing](#pairing)), grant the permissions in Freebox OS, then **Discover → Scan** and
+   add the devices you want.
+
+## Configuration
+
+| Field / action        | Purpose                                                                               |
+| --------------------- | ------------------------------------------------------------------------------------- |
+| Pair with the Freebox | asks the box for an app token; confirm on the LCD screen within about 55 seconds      |
+| Test the connection   | opens a session and counts the devices the box exposes                                |
+| Reboot the Freebox    | reboots the Freebox Server (needs the "Freebox settings modification" permission)     |
+| Unpair the Freebox    | forgets the app token; revoke the app in Freebox OS as well to remove it from the box |
+
+Permissions to tick in **Freebox OS → Settings → Access management → Applications → Gladys Assistant**: home
+automation and alarm, cameras, Freebox Player control, and the settings modification for the reboot. The internet
+connection needs no permission: reading the settings is open to every paired app.
+
+## Pairing
+
+![Click "Pair with the Freebox" in Gladys, press the right arrow on the Freebox LCD within about 55 seconds, tick the permissions in Freebox OS, then scan from Gladys (illustration)](docs/assets/pairing.svg)
+
+The app token is obtained through the **Pair with the Freebox** action and saved with `gladys.setConfig()` under a
+key that is **not** declared in the `config_schema`, then reloaded on every connection. The pairing is saved as soon
+as the box grants it: if listing the devices fails right after (permissions not ticked yet), the action says so
+instead of reporting a failed pairing.
+
+## Freebox Players
+
+![Power state, volume and mute go through the documented status and volume endpoints, channel numbers through control/open, media commands through control/mediactrl, and power, navigation and relative zapping through the undocumented control/remote (illustration)](docs/assets/player.svg)
+
+The Freebox Player API is versioned on its own (`/player/{id}/api/v{n}`), and only part of what a remote does is
+documented. Commands that rely on the virtual remote (`control/remote`) are kept because no documented endpoint
+reaches the navigation keys, but the user documentation flags them as best-effort. "Play" and "Pause" share the
+single `play_pause` command, and "Mute" toggles the real state read just before.
+
+## Scenes
+
+The integration declares no scene trigger or action of its own: every value is a device feature, usable in the scene
+editor of Gladys like any other.
+
+| When…                             | Trigger in Gladys                                           |
+| --------------------------------- | ----------------------------------------------------------- |
+| a door opens while nobody is home | Opening sensor → value 0, with a house-empty condition      |
+| motion is detected at night       | Motion sensor → value 1, with a time condition              |
+| the internet connection drops     | Freebox Server → Internet connection → text equals `down`   |
+| the connection is back            | Freebox Server → Internet connection → text equals `up`     |
+| the download rate stays high      | Freebox Server → Download rate → above a threshold (Mbit/s) |
+
+Actions work the same way: close the shutters, arm the alarm (`button` / `push`), switch a Player on, tune a channel
+by its number. The alarm panel state is the Freebox's own text (`idle` when disarmed): read it on the dashboard to
+write a condition on it.
+
+## Transport
+
+`local` only. The integration reaches the Freebox OS API on `mafreebox.freebox.fr` over HTTPS, verified against
+Free's root certificates, and reads the camera streams on the local network; it never calls a Free server.
 
 ## Development
 
 ```bash
 npm install
-GLADYS_HOST_API_URL="http://localhost:1443" \
-GLADYS_INTEGRATION_TOKEN="<token>" \
-GLADYS_INTEGRATION_SELECTOR="freebox" \
-npm start
+npm test               # unit tests (node --test), no network, no Freebox
+npm run lint           # ESLint
+npm run format:check   # Prettier, as the CI runs it
+npx github:GladysAssistant/integration-store . --skip-image-check   # store checks
+docker build -t gladys-freebox:dev .
 ```
 
-```bash
-npm test          # unit tests (node --test)
-npm run lint      # eslint
-npm run format    # prettier
+`ffmpeg` must be on the `PATH` to capture camera images; the Docker image installs it. Layout: see
+[CLAUDE.md](CLAUDE.md). `scripts/diagnose-realtime.js` probes a real box (websocket, fast polling) and is not part of
+the image.
+
+- `test/structure.test.js` compares the devices built from sample nodes (sensors, shutters, alarm, keyfob, camera,
+  Player) and the configuration and action keys to `test/fixtures/discovery.baseline.json`, generated from version
+  1.2.0: an external id, a selector, a category, a type or a bound never changes — users would have to delete and
+  recreate their devices.
+- `test/index.test.js` runs `index.js` against the fake Gladys of the SDK (discovery, device creation, polls).
+- `test/i18n.test.js` checks the four languages of the manifest, the docs and the READMEs; `test/messages.test.js`
+  those of the action results.
+- `test/release.test.js` covers the release script (versions, changelog, bump).
+
+Requirements: Gladys `>= 4.86.0` (store categories), Node.js `>= 22.20`.
+
+## Release and commit convention
+
+Releases are automatic. Every push to `main` runs the Release workflow:
+
+```mermaid
+flowchart LR
+  P[push to main] --> C[CI: format, lint, tests, store checks, docker build]
+  C --> V{commits since the last tag}
+  V -- "docs, chore, ci, test, refactor, build only" --> N[no release]
+  V -- "feat / fix / perf / breaking" --> B[build and push the image X.Y.Z + latest]
+  B --> K[verify: anonymous pull amd64 + arm64, store validator, topic]
+  K --> R["commit chore(release): X.Y.Z + tag vX.Y.Z (atomic push)"]
+  R --> GR[GitHub Release = CHANGELOG section]
 ```
 
-`ffmpeg` must be on the `PATH` to capture camera images; the Docker image installs it.
+- Commits and PR titles follow [Conventional Commits](https://www.conventionalcommits.org/), in English, written
+  for the user: they become the changelog lines. `feat` → minor, `fix` / `perf` → patch, `!` or
+  `BREAKING CHANGE:` → major.
+- `CHANGELOG.md` is generated at the release: never edit it by hand.
+- The image is published and checked **before** the manifest on `main` announces the new version.
+- Manual run (Actions → Release → Run workflow): `release-as` forces a version, `dry-run` only shows the version
+  and the notes.
+- A protected `main` would reject the release commit: allow GitHub Actions to bypass the rule, or use a GitHub
+  App token.
 
-Releases are cut from GitHub: **Actions → Release → Run workflow**, then pick the bump. The workflow updates the version in `package.json` and the manifest, regenerates `CHANGELOG.md` from the Conventional Commits, pushes the commit and the tag in one atomic push, publishes the GitHub release and builds the multi-arch image (`linux/amd64` + `linux/arm64`).
+## Troubleshooting
+
+| Symptom                                        | Likely cause                                                                 |
+| ---------------------------------------------- | ---------------------------------------------------------------------------- |
+| "Freebox not found on the local network"       | Gladys is not behind the Freebox, or `mafreebox.freebox.fr` does not resolve |
+| Pairing "not confirmed on the LCD screen"      | the 55 seconds ran out: stand next to the box, then run the action again     |
+| A device is missing from the scan              | its permission is not ticked in Freebox OS: tick it, then scan again         |
+| "Freebox session could not be opened"          | the app was revoked in Freebox OS: unpair, then pair again                   |
+| A Player is missing                            | Player POP / Android TV: no local API, the integration skips it              |
+| A remote key does nothing                      | undocumented `control/remote` key, not honoured by every Player firmware     |
+| No camera image                                | check the stream in Freebox OS; the image is refreshed every minute          |
+| No "Freebox Server" device on an older install | new device: Discover → Scan, then add it                                     |
+
+Detailed logs: set the environment variable `DEBUG=gladys-integration-sdk` on the container.
+
+## Design notes
+
+**The Freebox certificate is verified.** The box serves a certificate issued by Free's own authorities: the RSA
+"Freebox Root CA" on older boxes, the "Freebox ECC Root CA" (through an intermediate) on current ones. Both are
+bundled and the chain is checked; the hostname check also accepts the box's own `*.fbxos.fr` name.
+
+**One session for every request.** Gladys polls all devices on the same tick. The login (challenge + HMAC-SHA1) is
+shared between concurrent callers, and a request that finds its session expired reuses a session another request
+already reopened.
+
+**Changes only.** Every node is read twice a minute, but a value is published only when it changed: Gladys accepts
+300 states per minute from an integration, and a home with twenty sensors re-sending everything reached half of it.
+When the user adds a device, it is read at once, since Gladys drops the states sent before a device exists.
+
+**A value the box does not have is not published.** The Freebox answers `null` on endpoints it never refreshed (a
+battery before its first report): readers return nothing and the poll skips them rather than raising a false "empty
+battery".
+
+**Cameras stay out of the poll.** An ffmpeg capture takes several seconds, longer than the 5-second poll
+acknowledgement, so camera images are pushed by a loop of their own and captured on demand for the live view.
+
+**The connection state is the Freebox's own word.** `up`, `down`, `going_up` and `going_down` are published as text,
+exactly as the API names them, so a scene compares to a value that will not change with the user's language.
+
+## Contributing
+
+Issues and pull requests are welcome: bug reports with the Gladys version, the integration version, the Freebox
+model and the logs ([issue templates](.github/ISSUE_TEMPLATE)). Feedback on the
+[Gladys forum thread](https://community.gladysassistant.com/t/probleme-installation-integration-freebox/10399) too.
+Security problems: see [SECURITY.md](SECURITY.md).
 
 ## License
 
-[Apache-2.0](LICENSE)
+[Apache-2.0](LICENSE) — see [NOTICE](NOTICE). Freebox is a trademark of Free; this project is not affiliated with it.

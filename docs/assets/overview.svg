@@ -37,6 +37,14 @@
   <text x="505" y="297" text-anchor="middle" font-size="12" fill="#57606a">mafreebox.freebox.fr — Freebox OS API</text>
   <text x="505" y="319" text-anchor="middle" font-size="12" fill="#57606a">HTTPS checked against Free's root CAs</text>
 
+  <!-- Internet connection -->
+  <rect x="45" y="250" width="245" height="86" rx="10" fill="#ffffff" stroke="#24292f" stroke-width="1.5"/>
+  <text x="167" y="275" text-anchor="middle" font-size="14" font-weight="600" fill="#24292f">Internet connection</text>
+  <text x="62" y="296" font-size="12" fill="#24292f">• state (up, down, going up…)</text>
+  <text x="62" y="314" font-size="12" fill="#24292f">• download / upload rate (Mbit/s)</text>
+  <text x="62" y="330" font-size="11" fill="#57606a">read every 30 s</text>
+  <line x1="330" y1="293" x2="292" y2="293" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
+
   <!-- integration <-> Freebox -->
   <line x1="505" y1="150" x2="505" y2="243" stroke="#57606a" stroke-width="1.5" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
   <text x="515" y="190" font-size="11" fill="#57606a">one session, shared</text>
