@@ -311,8 +311,14 @@ export async function pollDevice(gladys, client, appToken, rawDevice) {
 
   if (states.length > 0) {
     try {
-      await gladys.publishStates(states);
-      logger.debug(`Freebox poll node ${nodeId}: ${states.length} state(s) published`);
+      // Changes only: every node is read twice a minute, and re-sending an
+      // unchanged sensor each time would add a history point per poll and eat
+      // into the 300 states per minute Gladys accepts from the integration — a
+      // home with twenty sensors already reached half of it.
+      const { count } = await gladys.publishChangedStates(states);
+      logger.debug(
+        `Freebox poll node ${nodeId}: ${count} of ${states.length} state(s) changed and published`,
+      );
     } catch (e) {
       // A rejected batch is the difference between "the device is silent" and
       // "the core refused our payload": surface the reason instead of letting
@@ -379,7 +385,7 @@ async function pollPlayer(gladys, client, appToken, device) {
   }
 
   if (states.length > 0) {
-    await gladys.publishStates(states);
+    await gladys.publishChangedStates(states);
   }
 }
 
@@ -557,7 +563,7 @@ async function publishMuteState(gladys, device, muted) {
     return;
   }
   try {
-    await gladys.publishStates([
+    await gladys.publishChangedStates([
       { device_feature_external_id: feature.external_id, state: muted ? 1 : 0 },
     ]);
   } catch (e) {
@@ -690,6 +696,38 @@ async function setPlayerValue(gladys, client, appToken, device, feature, value) 
     path: `${playerBaseUrl}/control/mediactrl`,
     data: { cmd },
   });
+}
+
+/**
+ * Publish everything a device the user just created can show.
+ *
+ * Gladys drops the states of a feature that does not exist yet, so the values
+ * read while the device was only "discovered" never reached it, and since the
+ * polls publish CHANGES only, a steady value (a closed door, a battery level)
+ * would stay blank until it moved. The SDK already forgot what it published
+ * for this device: read it now, and push a first image for a camera instead of
+ * waiting a minute for the camera loop.
+ * @param {object} gladys - The Gladys SDK instance.
+ * @param {import('./freebox/FreeboxClient.js').FreeboxClient} client - Freebox client.
+ * @param {string} appToken - The stored app token.
+ * @param {object} device - The device Gladys just created.
+ * @returns {Promise<void>} Resolves once published.
+ * @example
+ * await refreshCreatedDevice(gladys, client, appToken, device);
+ */
+export async function refreshCreatedDevice(gladys, client, appToken, device) {
+  if (!toNativeId(gladys, device.external_id).startsWith('freebox:')) {
+    return;
+  }
+  const isCamera = (device.features || []).some(
+    (f) => f.category === DEVICE_FEATURE_CATEGORIES.CAMERA,
+  );
+  if (isCamera) {
+    const image = await captureCameraImage(device);
+    await gladys.publishCameraImage(device.external_id, image);
+    return;
+  }
+  await pollDevice(gladys, client, appToken, device);
 }
 
 /**

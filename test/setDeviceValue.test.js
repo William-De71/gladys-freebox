@@ -143,8 +143,9 @@ function fakeGladys({ devices = [] } = {}) {
       getDevicesCalls += 1;
       return devices;
     },
-    publishStates: async (states) => {
+    publishChangedStates: async (states) => {
       published.push(...states);
+      return { success: true, count: states.length };
     },
   };
 }
@@ -462,8 +463,9 @@ function gladysWithStates() {
   return {
     selector: SELECTOR,
     published,
-    publishStates: async (states) => {
+    publishChangedStates: async (states) => {
       published.push(...states);
+      return { success: true, count: states.length };
     },
   };
 }

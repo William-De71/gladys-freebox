@@ -20,6 +20,7 @@ import { APP_TOKEN_CONFIG_KEY } from './src/freebox/constants.js';
 import {
   buildDiscoveredDevices,
   pollDevice,
+  refreshCreatedDevice,
   setDeviceValue,
   getDeviceImage,
   startCameraPush,
@@ -113,6 +114,15 @@ gladys.onDeviceCreated(async (device) => {
   logger.info(
     `Device created in Gladys: "${device.name}" (${forLog(gladys, device.external_id)}, ` +
       `selector=${device.selector}, ${(device.features || []).length} feature(s))`,
+  );
+  // The states read before this moment were dropped by Gladys: without this,
+  // a new device stayed blank until one of its values changed.
+  const appToken = await getAppToken();
+  if (!appToken) {
+    return;
+  }
+  await refreshCreatedDevice(gladys, client, appToken, device).catch((e) =>
+    logger.warn(`First refresh of "${device.name}" failed: ${e.message}`),
   );
 });
 

@@ -65,8 +65,10 @@ docs/{en,fr,de,es}.md        user documentation, re-hosted by the store
 - **`should_poll` / `poll_frequency`** (milliseconds, one of
   `DEVICE_POLL_FREQUENCIES`) are never resynchronized on a device already
   created.
-- **States.** 300 states per minute per integration: publish changes, not
-  snapshots. States sent before a device is created are dropped.
+- **States.** Publish through `publishChangedStates` (300 states per minute per
+  integration, and an unchanged value must not be sent again). States sent
+  before a device is created are dropped: `onDeviceCreated` reads the new
+  device at once (`refreshCreatedDevice`).
 - **Poll acknowledgement.** The core waits 5 seconds for `onPoll`: never
   capture a camera image there (ffmpeg takes longer); the camera push loop and
   `onGetImage` do it.
