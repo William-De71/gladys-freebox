@@ -1,0 +1,524 @@
+{
+  "generated_from": "1.2.0",
+  "selector": "ext-dev-freebox",
+  "devices": {
+    "openingSensor": {
+      "external_id": "ext:ext-dev-freebox:freebox:12",
+      "selector": "freebox-12",
+      "model": "dws",
+      "should_poll": true,
+      "poll_frequency": 30000,
+      "params": [],
+      "features": [
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:12:6",
+          "selector": "freebox-12-6-trigger",
+          "category": "opening-sensor",
+          "type": "binary",
+          "min": 0,
+          "max": 1,
+          "read_only": true,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:12:7",
+          "selector": "freebox-12-7-cover",
+          "category": "tamper",
+          "type": "binary",
+          "min": 0,
+          "max": 1,
+          "read_only": true,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:12:8",
+          "selector": "freebox-12-8-battery_warning",
+          "category": "battery",
+          "type": "integer",
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "read_only": true,
+          "has_feedback": false
+        }
+      ]
+    },
+    "motionSensor": {
+      "external_id": "ext:ext-dev-freebox:freebox:16",
+      "selector": "freebox-16",
+      "model": "pir",
+      "should_poll": true,
+      "poll_frequency": 30000,
+      "params": [],
+      "features": [
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:16:6",
+          "selector": "freebox-16-6-trigger",
+          "category": "motion-sensor",
+          "type": "binary",
+          "min": 0,
+          "max": 1,
+          "read_only": true,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:16:7",
+          "selector": "freebox-16-7-cover",
+          "category": "tamper",
+          "type": "binary",
+          "min": 0,
+          "max": 1,
+          "read_only": true,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:16:8",
+          "selector": "freebox-16-8-battery_warning",
+          "category": "battery",
+          "type": "integer",
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "read_only": true,
+          "has_feedback": false
+        }
+      ]
+    },
+    "sliderShutter": {
+      "external_id": "ext:ext-dev-freebox:freebox:21",
+      "selector": "freebox-21",
+      "model": "store_slider",
+      "should_poll": true,
+      "poll_frequency": 30000,
+      "params": [],
+      "features": [
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:21:1",
+          "selector": "freebox-21-1-stop",
+          "category": "shutter",
+          "type": "state",
+          "min": -1,
+          "max": 1,
+          "read_only": false,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:21:3",
+          "selector": "freebox-21-3-position",
+          "category": "shutter",
+          "type": "position",
+          "min": 0,
+          "max": 100,
+          "read_only": false,
+          "has_feedback": false
+        }
+      ]
+    },
+    "legacyShutter": {
+      "external_id": "ext:ext-dev-freebox:freebox:22",
+      "selector": "freebox-22",
+      "model": "store",
+      "should_poll": true,
+      "poll_frequency": 30000,
+      "params": [],
+      "features": [
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:22:1",
+          "selector": "freebox-22-1-stop",
+          "category": "shutter",
+          "type": "state",
+          "min": -1,
+          "max": 1,
+          "read_only": false,
+          "has_feedback": false
+        }
+      ]
+    },
+    "alarmPanel": {
+      "external_id": "ext:ext-dev-freebox:freebox:9",
+      "selector": "freebox-9",
+      "model": "alarm_control",
+      "should_poll": true,
+      "poll_frequency": 30000,
+      "params": [],
+      "features": [
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:9:1",
+          "selector": "freebox-9-1-alarm1",
+          "category": "button",
+          "type": "push",
+          "min": 0,
+          "max": 1,
+          "read_only": false,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:9:2",
+          "selector": "freebox-9-2-alarm2",
+          "category": "button",
+          "type": "push",
+          "min": 0,
+          "max": 1,
+          "read_only": false,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:9:3",
+          "selector": "freebox-9-3-skip",
+          "category": "button",
+          "type": "push",
+          "min": 0,
+          "max": 1,
+          "read_only": false,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:9:4",
+          "selector": "freebox-9-4-off",
+          "category": "button",
+          "type": "push",
+          "min": 0,
+          "max": 1,
+          "read_only": false,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:9:11",
+          "selector": "freebox-9-11-state",
+          "category": "text",
+          "type": "text",
+          "min": 0,
+          "max": 1,
+          "read_only": true,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:9:20",
+          "selector": "freebox-9-20-battery_warning",
+          "category": "battery",
+          "type": "integer",
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "read_only": true,
+          "has_feedback": false
+        }
+      ]
+    },
+    "keyfob": {
+      "external_id": "ext:ext-dev-freebox:freebox:11",
+      "selector": "freebox-11",
+      "model": "alarm_remote",
+      "should_poll": true,
+      "poll_frequency": 30000,
+      "params": [],
+      "features": [
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:11:2",
+          "selector": "freebox-11-2-pushed",
+          "category": "button",
+          "type": "click",
+          "min": 0,
+          "max": 6,
+          "read_only": true,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:11:5",
+          "selector": "freebox-11-5-battery_warning",
+          "category": "battery",
+          "type": "integer",
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "read_only": true,
+          "has_feedback": false
+        }
+      ]
+    },
+    "camera": {
+      "external_id": "ext:ext-dev-freebox:freebox:30",
+      "selector": "freebox-30",
+      "model": "camera",
+      "should_poll": true,
+      "poll_frequency": 60000,
+      "params": ["CAMERA_URL", "CAMERA_ROTATION"],
+      "features": [
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:30:1",
+          "selector": "freebox-30-1-cam",
+          "category": "camera",
+          "type": "image",
+          "min": 0,
+          "max": 0,
+          "read_only": true,
+          "has_feedback": false
+        }
+      ]
+    },
+    "player": {
+      "external_id": "ext:ext-dev-freebox:freebox:player:1",
+      "selector": "freebox-player-1",
+      "model": "player",
+      "should_poll": true,
+      "poll_frequency": 30000,
+      "params": ["PLAYER_API_VERSION"],
+      "features": [
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:player:1:binary",
+          "selector": "freebox-player-1-binary",
+          "category": "television",
+          "type": "binary",
+          "min": 0,
+          "max": 1,
+          "read_only": false,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:player:1:volume",
+          "selector": "freebox-player-1-volume",
+          "category": "television",
+          "type": "volume",
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "read_only": false,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:player:1:volume-mute",
+          "selector": "freebox-player-1-volume-mute",
+          "category": "television",
+          "type": "volume-mute",
+          "min": 0,
+          "max": 1,
+          "read_only": false,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:player:1:play",
+          "selector": "freebox-player-1-play",
+          "category": "television",
+          "type": "play",
+          "min": 0,
+          "max": 1,
+          "read_only": false,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:player:1:pause",
+          "selector": "freebox-player-1-pause",
+          "category": "television",
+          "type": "pause",
+          "min": 0,
+          "max": 1,
+          "read_only": false,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:player:1:stop",
+          "selector": "freebox-player-1-stop",
+          "category": "television",
+          "type": "stop",
+          "min": 0,
+          "max": 1,
+          "read_only": false,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:player:1:previous",
+          "selector": "freebox-player-1-previous",
+          "category": "television",
+          "type": "previous",
+          "min": 0,
+          "max": 1,
+          "read_only": false,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:player:1:next",
+          "selector": "freebox-player-1-next",
+          "category": "television",
+          "type": "next",
+          "min": 0,
+          "max": 1,
+          "read_only": false,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:player:1:rewind",
+          "selector": "freebox-player-1-rewind",
+          "category": "television",
+          "type": "rewind",
+          "min": 0,
+          "max": 1,
+          "read_only": false,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:player:1:forward",
+          "selector": "freebox-player-1-forward",
+          "category": "television",
+          "type": "forward",
+          "min": 0,
+          "max": 1,
+          "read_only": false,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:player:1:channel",
+          "selector": "freebox-player-1-channel",
+          "category": "television",
+          "type": "channel",
+          "min": 1,
+          "max": 999,
+          "read_only": false,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:player:1:channel-up",
+          "selector": "freebox-player-1-channel-up",
+          "category": "television",
+          "type": "channel-up",
+          "min": 0,
+          "max": 1,
+          "read_only": false,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:player:1:channel-down",
+          "selector": "freebox-player-1-channel-down",
+          "category": "television",
+          "type": "channel-down",
+          "min": 0,
+          "max": 1,
+          "read_only": false,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:player:1:source",
+          "selector": "freebox-player-1-source",
+          "category": "television",
+          "type": "source",
+          "min": 0,
+          "max": 1,
+          "read_only": false,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:player:1:menu",
+          "selector": "freebox-player-1-menu",
+          "category": "television",
+          "type": "menu",
+          "min": 0,
+          "max": 1,
+          "read_only": false,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:player:1:guide",
+          "selector": "freebox-player-1-guide",
+          "category": "television",
+          "type": "guide",
+          "min": 0,
+          "max": 1,
+          "read_only": false,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:player:1:info",
+          "selector": "freebox-player-1-info",
+          "category": "television",
+          "type": "info",
+          "min": 0,
+          "max": 1,
+          "read_only": false,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:player:1:up",
+          "selector": "freebox-player-1-up",
+          "category": "television",
+          "type": "up",
+          "min": 0,
+          "max": 1,
+          "read_only": false,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:player:1:down",
+          "selector": "freebox-player-1-down",
+          "category": "television",
+          "type": "down",
+          "min": 0,
+          "max": 1,
+          "read_only": false,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:player:1:left",
+          "selector": "freebox-player-1-left",
+          "category": "television",
+          "type": "left",
+          "min": 0,
+          "max": 1,
+          "read_only": false,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:player:1:right",
+          "selector": "freebox-player-1-right",
+          "category": "television",
+          "type": "right",
+          "min": 0,
+          "max": 1,
+          "read_only": false,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:player:1:enter",
+          "selector": "freebox-player-1-enter",
+          "category": "television",
+          "type": "enter",
+          "min": 0,
+          "max": 1,
+          "read_only": false,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:player:1:return",
+          "selector": "freebox-player-1-return",
+          "category": "television",
+          "type": "return",
+          "min": 0,
+          "max": 1,
+          "read_only": false,
+          "has_feedback": false
+        },
+        {
+          "external_id": "ext:ext-dev-freebox:freebox:player:1:record",
+          "selector": "freebox-player-1-record",
+          "category": "television",
+          "type": "record",
+          "min": 0,
+          "max": 1,
+          "read_only": false,
+          "has_feedback": false
+        }
+      ]
+    }
+  },
+  "manifest": {
+    "config_schema": [
+      {
+        "key": "intro",
+        "type": "section"
+      },
+      {
+        "key": "permissions",
+        "type": "section"
+      }
+    ],
+    "actions": ["pair", "test_connection", "reboot", "unpair"]
+  }
+}
