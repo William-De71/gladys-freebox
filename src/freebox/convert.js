@@ -28,7 +28,7 @@ import {
   ALARM_OFF,
   ALARM_SKIP,
 } from './deviceMapping.js';
-import { PLAYER } from './constants.js';
+import { PLAYER, SERVER } from './constants.js';
 
 const logger = createLogger({ name: 'freebox-convert' });
 
@@ -479,6 +479,100 @@ export function convertPlayer(freeboxPlayer) {
     should_poll: true,
     params: [{ name: PLAYER.API_VERSION_PARAM, value: apiVersionParam }],
   };
+}
+
+// Freebox `ConnectionStatus.state` values: the alarm-panel way, published as
+// text so a scene can test them as they are ("down", "up").
+export const CONNECTION_STATES = ['going_up', 'up', 'going_down', 'down'];
+
+// Download and upload rates, in Mbit/s. The Freebox Ultra syncs at 8 Gbit/s:
+// the range leaves room for the next generation.
+const MAX_RATE_MBPS = 10000;
+
+/**
+ * Build the Freebox Server device: the internet connection of the box.
+ *
+ * Published once per integration (one box per Gladys), with fixed ids: the
+ * rates are what the box carries right now, read from `/connection/`, and the
+ * state is the raw Freebox value, the one a scene compares to.
+ * @returns {object} Gladys device.
+ * @example
+ * buildServerDevice(); // { external_id: 'freebox:server', ... }
+ */
+export function buildServerDevice() {
+  const externalId = `freebox:${SERVER.EXTERNAL_ID_SEGMENT}`;
+  const selector = `freebox-${SERVER.EXTERNAL_ID_SEGMENT}`;
+  const rate = (key, name) => ({
+    name,
+    external_id: `${externalId}:${key}`,
+    selector: `${selector}-${key}`,
+    category: DEVICE_FEATURE_CATEGORIES.DATARATE,
+    type: DEVICE_FEATURE_TYPES.DATARATE.RATE,
+    unit: DEVICE_FEATURE_UNITS.MEGABITS_PER_SECOND,
+    read_only: true,
+    keep_history: true,
+    has_feedback: false,
+    min: 0,
+    max: MAX_RATE_MBPS,
+  });
+  return {
+    name: SERVER.NAME,
+    external_id: externalId,
+    selector,
+    model: SERVER.MODEL,
+    poll_frequency: POLL_EVERY_30_SECONDS,
+    should_poll: true,
+    features: [
+      {
+        name: 'Internet connection',
+        external_id: `${externalId}:connection`,
+        selector: `${selector}-connection`,
+        category: DEVICE_FEATURE_CATEGORIES.TEXT,
+        type: DEVICE_FEATURE_TYPES.TEXT.TEXT,
+        read_only: true,
+        keep_history: true,
+        has_feedback: false,
+        min: 0,
+        max: 0,
+      },
+      rate('rate-down', 'Download rate'),
+      rate('rate-up', 'Upload rate'),
+    ],
+  };
+}
+
+/**
+ * Turn a Freebox `ConnectionStatus` into the values of the server features.
+ * @param {object} status - The `result` of `/connection/`.
+ * @returns {{ connection?: string, 'rate-down'?: number, 'rate-up'?: number }}
+ * The values, keyed by feature; a value the box did not give is left out.
+ * @example
+ * readConnection({ state: 'up', rate_down: 125000, rate_up: 0 });
+ * // { connection: 'up', 'rate-down': 1, 'rate-up': 0 }
+ */
+export function readConnection(status) {
+  const values = {};
+  if (CONNECTION_STATES.includes(status && status.state)) {
+    values.connection = status.state;
+  }
+  // Bytes per second -> Mbit/s, one decimal: enough to tell an idle line from
+  // a download, without a new history point for every byte.
+  const mbps = (bytesPerSecond) => {
+    const value = Number(bytesPerSecond);
+    if (bytesPerSecond === null || bytesPerSecond === undefined || !Number.isFinite(value)) {
+      return undefined;
+    }
+    return Math.round((value * 8) / 100000) / 10;
+  };
+  const down = mbps(status && status.rate_down);
+  const up = mbps(status && status.rate_up);
+  if (down !== undefined) {
+    values['rate-down'] = down;
+  }
+  if (up !== undefined) {
+    values['rate-up'] = up;
+  }
+  return values;
 }
 
 /**

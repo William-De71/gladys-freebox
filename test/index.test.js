@@ -30,6 +30,7 @@ const nodeValues = {
   ],
 };
 const player = { power_state: 'running', volume: 25, mute: false };
+const connection = { state: 'up', media: 'ftth', rate_down: 2500000, rate_up: 125000 };
 
 const gladys = createFakeGladys({ selector: 'ext-dev-freebox', config: { app_token: 'token' } });
 
@@ -66,6 +67,9 @@ mock.module('../src/freebox/FreeboxClient.js', {
           data: { success: true, result: { volume: player.volume, mute: player.mute } },
         };
       }
+      async loadConnectionStatus() {
+        return { ...connection };
+      }
       reset() {}
     },
   },
@@ -95,7 +99,8 @@ const statesOf = (externalId) =>
 test('once connected and paired, every sample device is discovered', () => {
   assert.equal(
     gladys.fake.discoveredDevices.length,
-    Object.keys(SAMPLE_NODES).length + Object.keys(SAMPLE_PLAYERS).length,
+    // + the Freebox Server, for the internet connection.
+    Object.keys(SAMPLE_NODES).length + Object.keys(SAMPLE_PLAYERS).length + 1,
   );
   assert.equal(gladys.fake.connectionStatus.connected, true);
 });
@@ -139,4 +144,18 @@ test('a camera just created gets a first image at once', async () => {
     (entry) => (entry.device_external_id ?? entry.external_id) === camera.external_id,
   );
   assert.equal(images.length, 1);
+});
+
+test('the Freebox Server reports the internet connection, and its loss', async () => {
+  const server = discovered('freebox:server');
+  await gladys.fake.deviceCreated(server);
+
+  assert.deepEqual(statesOf(`${server.external_id}:connection`), ['up']);
+  assert.deepEqual(statesOf(`${server.external_id}:rate-down`), [20]);
+  assert.deepEqual(statesOf(`${server.external_id}:rate-up`), [1]);
+
+  Object.assign(connection, { state: 'down', rate_down: 0, rate_up: 0 });
+  await gladys.fake.poll(server);
+  assert.deepEqual(statesOf(`${server.external_id}:connection`), ['up', 'down']);
+  assert.deepEqual(statesOf(`${server.external_id}:rate-down`), [20, 0]);
 });

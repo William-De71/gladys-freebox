@@ -1,10 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  buildServerDevice,
   convertDevice,
   convertFeature,
   convertPlayer,
   getPlayerBaseUrl,
+  readConnection,
 } from '../src/freebox/convert.js';
 import { normalizeCameraUrl } from '../src/freebox/camera.js';
 
@@ -313,4 +315,53 @@ test('normalizeCameraUrl rewrites an unusable host, keeping credentials', () => 
   const usable = 'http://freeboxcam:secret@192.168.0.156/img/stream.m3u8';
   assert.equal(normalizeCameraUrl(usable), usable, 'a real address is left untouched');
   assert.equal(normalizeCameraUrl('not a url'), 'not a url');
+});
+
+// The internet connection of the box, one device for the whole Freebox.
+test('buildServerDevice publishes the connection state and the two rates', () => {
+  const device = buildServerDevice();
+  assert.equal(device.external_id, 'freebox:server');
+  assert.equal(device.selector, 'freebox-server');
+  assert.equal(device.should_poll, true);
+  assert.equal(device.poll_frequency, 30000);
+  assert.deepEqual(
+    device.features.map((f) => [f.external_id, f.selector, f.category, f.type, f.unit]),
+    [
+      ['freebox:server:connection', 'freebox-server-connection', 'text', 'text', undefined],
+      [
+        'freebox:server:rate-down',
+        'freebox-server-rate-down',
+        'datarate',
+        'rate',
+        'megabits-per-second',
+      ],
+      [
+        'freebox:server:rate-up',
+        'freebox-server-rate-up',
+        'datarate',
+        'rate',
+        'megabits-per-second',
+      ],
+    ],
+  );
+  device.features.forEach((feature) => assert.equal(feature.read_only, true));
+});
+
+test('readConnection keeps the Freebox state and converts the rates to Mbit/s', () => {
+  // 125 000 bytes/s = 1 Mbit/s; 61 bytes/s rounds to an idle line.
+  assert.deepEqual(readConnection({ state: 'up', rate_down: 125000, rate_up: 61 }), {
+    connection: 'up',
+    'rate-down': 1,
+    'rate-up': 0,
+  });
+  assert.deepEqual(readConnection({ state: 'down', rate_down: 0, rate_up: 0 }), {
+    connection: 'down',
+    'rate-down': 0,
+    'rate-up': 0,
+  });
+  // 1 Gbit/s FTTH at full speed.
+  assert.equal(readConnection({ rate_down: 125000000 })['rate-down'], 1000);
+  // Unknown state, missing or broken rates: left out, never published as 0.
+  assert.deepEqual(readConnection({ state: 'weird', rate_down: null, rate_up: 'x' }), {});
+  assert.deepEqual(readConnection(undefined), {});
 });

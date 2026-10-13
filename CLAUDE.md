@@ -10,8 +10,9 @@ A Gladys Assistant **external integration** of type `device`: it brings a
 only** (the Freebox OS API on `mafreebox.freebox.fr`, no Free account, no
 cloud): home automation (opening and motion sensors, tamper contacts,
 batteries, roller shutters, alarm panel and keyfob), Freebox Players (power,
-volume, channels, media, remote keys) and cameras (ffmpeg snapshots of the
-HLS stream). A Node.js service (Node 22+,
+volume, channels, media, remote keys), cameras (ffmpeg snapshots of the HLS
+stream) and the internet connection of the box (state, download and upload
+rates). A Node.js service (Node 22+,
 ESM, no build step) that runs in its own sandboxed Docker container and talks
 to Gladys through
 [`@gladysassistant/integration-sdk`](https://github.com/GladysAssistant/integration-sdk-js).
@@ -52,7 +53,8 @@ docs/{en,fr,de,es}.md        user documentation, re-hosted by the store
 
 - **Ids and selectors are forever**: the device and feature external ids
   (`freebox:{node}`, `freebox:{node}:{endpoint}`, `freebox:player:{id}`,
-  `freebox:player:{id}:{type}`, prefixed with `ext:<selector>:` only at the
+  `freebox:player:{id}:{type}`, `freebox:server:{connection|rate-down|rate-up}`,
+  prefixed with `ext:<selector>:` only at the
   edge by `src/externalId.js`), the device and feature selectors (scenes point
   at them), and for each feature its `category`, `type`, `unit`, `min`, `max`,
   `read_only`, `has_feedback`; the device params (`CAMERA_URL`,

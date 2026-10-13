@@ -354,6 +354,26 @@ export class FreeboxClient {
   }
 
   /**
+   * Read the state of the internet connection (`ConnectionStatus`: `state`,
+   * `media`, `rate_down`, `rate_up` in bytes per second...). Needs no
+   * permission: reading the settings is open to every paired app.
+   * @param {string} appToken - The stored app token.
+   * @returns {Promise<object>} The `result` of `/connection/`.
+   * @see https://dev.freebox.fr/sdk/os/connection/
+   * @example
+   * const { state, rate_down: rateDown } = await client.loadConnectionStatus(appToken);
+   */
+  async loadConnectionStatus(appToken) {
+    const { data } = await this.authRequest(appToken, { path: '/connection/' });
+    if (!data || data.success === false || !data.result || typeof data.result !== 'object') {
+      throw new Error(
+        `Freebox connection status unavailable: ${(data && data.msg) || 'unexpected answer'}`,
+      );
+    }
+    return data.result;
+  }
+
+  /**
    * Load the Freebox Players (set-top boxes). Requires the "player" permission
    * to be granted to the app in Freebox OS.
    * @param {string} appToken - The stored app token.

@@ -148,3 +148,16 @@ test('openSession lets the next call retry after a failed login', async () => {
   await assert.rejects(client.openSession('app'), /box unreachable/);
   assert.equal(await client.openSession('app'), 'session');
 });
+
+test('loadConnectionStatus returns the ConnectionStatus of the box', async () => {
+  const result = { state: 'up', media: 'ftth', rate_down: 61, rate_up: 0 };
+  const client = clientAnswering({ success: true, result });
+  assert.deepEqual(await client.loadConnectionStatus('token'), result);
+});
+
+test('loadConnectionStatus fails loudly on a refused or empty answer', async () => {
+  for (const data of [{ success: false, msg: 'nope' }, { success: true, result: null }, null]) {
+    const client = clientAnswering(data);
+    await assert.rejects(client.loadConnectionStatus('token'), /connection status unavailable/);
+  }
+});

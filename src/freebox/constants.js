@@ -34,6 +34,17 @@ export const PLAYER = {
   DEFAULT_NAME: 'Freebox Player',
 };
 
+// The Freebox Server itself, published as one device carrying the state of
+// the internet connection (`/connection/`, readable by every app: reading the
+// settings needs no permission).
+export const SERVER = {
+  // Second segment of the external_id ("freebox:server"): never a number, so
+  // it cannot meet a home-automation node id, nor the player segment.
+  EXTERNAL_ID_SEGMENT: 'server',
+  MODEL: 'server',
+  NAME: 'Freebox Server',
+};
+
 // HTTPS access to the Freebox: https://dev.freebox.fr/sdk/os/#https-access
 // The Freebox serves a certificate issued by Free's own authorities. Older
 // boxes chain to the RSA "Freebox Root CA"; recent ones (Delta, Pop, Ultra)

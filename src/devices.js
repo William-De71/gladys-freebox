@@ -11,10 +11,16 @@ import {
   DEVICE_FEATURE_CATEGORIES,
   DEVICE_FEATURE_TYPES,
 } from '@gladysassistant/integration-sdk';
-import { convertDevice, convertPlayer, getPlayerBaseUrl } from './freebox/convert.js';
+import {
+  buildServerDevice,
+  convertDevice,
+  convertPlayer,
+  getPlayerBaseUrl,
+  readConnection,
+} from './freebox/convert.js';
 import { readValues, writeValues, COVER_STATE } from './freebox/deviceMapping.js';
 import { captureCameraImage } from './freebox/camera.js';
-import { PLAYER } from './freebox/constants.js';
+import { PLAYER, SERVER } from './freebox/constants.js';
 import { toPublishedDevice, toNativeId, forLog } from './externalId.js';
 
 const logger = createLogger({ name: 'freebox-devices' });
@@ -112,6 +118,10 @@ export async function buildDiscoveredDevices(gladys, client, appToken) {
       logger.debug(e);
     }
   });
+
+  // The internet connection of the box: always readable once paired, whatever
+  // permissions the user ticked.
+  devices.push(buildServerDevice());
 
   logger.info(`Freebox discovery: ${devices.length} device(s) built`);
 
@@ -219,6 +229,11 @@ export async function pollDevice(gladys, client, appToken, rawDevice) {
 
   if (nodeId === PLAYER.EXTERNAL_ID_SEGMENT) {
     await pollPlayer(gladys, client, appToken, device);
+    return;
+  }
+
+  if (nodeId === SERVER.EXTERNAL_ID_SEGMENT) {
+    await pollServer(gladys, client, appToken, device);
     return;
   }
 
@@ -384,6 +399,37 @@ async function pollPlayer(gladys, client, appToken, device) {
     }
   }
 
+  if (states.length > 0) {
+    await gladys.publishChangedStates(states);
+  }
+}
+
+/**
+ * Poll the Freebox Server device: state of the internet connection and rates.
+ * @param {object} gladys - The Gladys SDK instance.
+ * @param {import('./freebox/FreeboxClient.js').FreeboxClient} client - Freebox client.
+ * @param {string} appToken - The stored app token.
+ * @param {object} device - The server device.
+ * @returns {Promise<void>} Resolves when polled.
+ * @example
+ * await pollServer(gladys, client, appToken, device);
+ */
+async function pollServer(gladys, client, appToken, device) {
+  const values = readConnection(await client.loadConnectionStatus(appToken));
+  const states = [];
+  (device.features || []).forEach((feature) => {
+    const key = toNativeId(gladys, feature.external_id).split(':')[2];
+    const value = values[key];
+    if (value === undefined) {
+      return;
+    }
+    // The connection state is text: `state` is a numeric column (see pollDevice).
+    states.push(
+      typeof value === 'string'
+        ? { device_feature_external_id: feature.external_id, text: value }
+        : { device_feature_external_id: feature.external_id, state: value },
+    );
+  });
   if (states.length > 0) {
     await gladys.publishChangedStates(states);
   }
