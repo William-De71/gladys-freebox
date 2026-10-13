@@ -1,3 +1,20 @@
+# Changelog
+
+All notable changes to this integration are documented in this file. The format
+follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions
+follow [Semantic Versioning](https://semver.org/). This file is generated at
+each release from the Conventional Commits: do not edit it by hand.
+
+## [1.3.0] - 2026-10-13
+
+### Added
+
+- **devices:** show the internet connection of the Freebox, with its download and upload rates ([236b2b8](https://github.com/William-De71/gladys-freebox/commit/236b2b8e437da4095edd0206a0bb25d50d6e187b))
+
+### Fixed
+
+- show the state of a device as soon as it is added, and send only the values that change ([15a3e76](https://github.com/William-De71/gladys-freebox/commit/15a3e76c3d556db54a22fb0395fef3d476409ace))
+
 ## [1.2.0](https://github.com/William-De71/gladys-freebox/compare/v1.1.0...v1.2.0) (2026-10-11)
 
 ### Features
@@ -67,3 +84,5 @@
 * **freebox:** don't assume the API result is an array ([06577e4](https://github.com/William-De71/gladys-freebox/commit/06577e4d63e2d0dad5dc24de8f1822ff4ebfadc6))
 
 ## 1.0.0 (2026-07-24)
+
+[1.3.0]: https://github.com/William-De71/gladys-freebox/compare/v1.2.0...v1.3.0
