@@ -128,3 +128,17 @@ test('README: every image exists, and every table of contents entry points to a 
     }
   }
 });
+
+test('widget illustrations: one per language, shown by its README and its doc', () => {
+  for (const language of LANGUAGES) {
+    const image = `docs/assets/widgets.${language}.png`;
+    assert.ok(existsSync(new URL(`../${image}`, import.meta.url)), `${image} is missing`);
+    assert.ok(read(`../${READMES[language]}`).includes(`](${image})`), `${READMES[language]}`);
+    assert.ok(
+      read(`../docs/${language}.md`).includes(
+        `](https://raw.githubusercontent.com/William-De71/gladys-freebox/main/${image})`,
+      ),
+      `docs/${language}.md`,
+    );
+  }
+});

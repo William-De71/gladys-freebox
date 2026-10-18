@@ -43,6 +43,10 @@ export const SERVER = {
   EXTERNAL_ID_SEGMENT: 'server',
   MODEL: 'server',
   NAME: 'Freebox Server',
+  // Feature keys (third segment of the external id) added in 1.4.0: the Wi-Fi
+  // switch, and one temperature per sensor the box lists ("temp-<sensor id>").
+  WIFI_KEY: 'wifi',
+  SENSOR_PREFIX: 'temp-',
 };
 
 // HTTPS access to the Freebox: https://dev.freebox.fr/sdk/os/#https-access

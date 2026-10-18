@@ -5,13 +5,14 @@
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Latest release](https://img.shields.io/github/v/release/William-De71/gladys-freebox?sort=semver)](https://github.com/William-De71/gladys-freebox/releases)
 [![CI](https://img.shields.io/github/actions/workflow/status/William-De71/gladys-freebox/release.yml?branch=main&label=CI)](https://github.com/William-De71/gladys-freebox/actions/workflows/release.yml)
-[![Gladys](https://img.shields.io/badge/Gladys-%E2%89%A5%204.86.0-2f6fb5)](https://gladysassistant.com)
+[![Gladys](https://img.shields.io/badge/Gladys-%E2%89%A5%205.1.0-2f6fb5)](https://gladysassistant.com)
 
 ![Freebox for Gladys Assistant](cover.jpg)
 
 External [Gladys Assistant](https://gladysassistant.com) integration bringing your **Freebox** into Gladys: home
-automation sensors, roller shutters and alarm, Freebox Players (power, volume, channels, media, remote keys),
-cameras, and the state of the internet connection with its download and upload rates. Built on
+automation sensors, roller shutters and alarm, Freebox Players (power, volume, channels, media, remote keys), cameras,
+the state of the internet connection with its download and upload rates, the Wi-Fi and the temperatures of the box,
+three dashboard widgets (the box, the call log, the devices of the network) and scene triggers. Built on
 `@gladysassistant/integration-sdk` 0.15.
 
 Everything stays **on your local network**: the integration talks to the Freebox OS API on `mafreebox.freebox.fr`,
@@ -30,6 +31,7 @@ User documentation: [English](docs/en.md) · [Français](docs/fr.md) · [Deutsch
 - [Configuration](#configuration)
 - [Pairing](#pairing)
 - [Freebox Players](#freebox-players)
+- [Widgets](#widgets)
 - [Scenes](#scenes)
 - [Transport](#transport)
 - [Development](#development)
@@ -47,11 +49,19 @@ User documentation: [English](docs/en.md) · [Français](docs/fr.md) · [Deutsch
 - **Cameras**: dashboard image refreshed every minute, fresh capture for the live view (ffmpeg reads the HLS stream).
 - **Internet connection**: a **Freebox Server** device with the state of the connection (`up`, `down`, `going_up`,
   `going_down`) and the download and upload rates in Mbit/s, to watch the line and trigger scenes when it drops.
+- **Wi-Fi and temperatures**: the **Freebox Server** device also carries a Wi-Fi switch (`switch` / `binary`, every
+  access point of the box) and one `device-temperature-sensor` per sensor the box lists.
+- **Dashboard widgets**: **Freebox** (rates, traffic history kept by the box, temperature, internet link, Wi-Fi,
+  connected devices, fan, buttons to switch the Wi-Fi and reboot), **Phone calls** (the call log, mark as read) and
+  **Network devices** (connected or gone, with IP and MAC addresses).
+- **Scenes**: triggers on a **phone call** and on a **device that connects to or leaves** the network, and a
+  **Wake-on-LAN** action.
 - **Configuration actions**: pair, test the connection, reboot the Freebox, unpair.
 - **Four languages** for the configuration screen and the action results: English, French, German, Spanish.
 
 Every state is published **when it changes**, and a device just added in Gladys gets its current values at once. The
-integration declares no dashboard widget of its own: devices use the boxes of Gladys.
+LAN hosts and the call log are read every 30 seconds by the integration itself (no device needed): they feed the
+widgets and the scene triggers.
 
 ## Architecture
 
@@ -99,18 +109,19 @@ sequenceDiagram
 
 ## Devices
 
-| Freebox side                                | Gladys feature (category / type)                                       | Polling    |
-| ------------------------------------------- | ---------------------------------------------------------------------- | ---------- |
-| Opening sensor                              | `opening-sensor` / `binary` (1 = closed)                               | every 30 s |
-| Motion sensor                               | `motion-sensor` / `binary` (1 = motion)                                | every 30 s |
-| Battery, tamper contact                     | `battery` / `integer` (%), `tamper` / `binary`                         | every 30 s |
-| Roller shutters (`store`, `store_slider`)   | `shutter` / `state` (open / stop / close), `shutter` / `position` (%)  | every 30 s |
-| Alarm control panel                         | `button` / `push` (arm, secondary arm, disarm, skip), `text` / `text`  | every 30 s |
-| Alarm keyfob                                | `button` / `click` (best effort: a press between two polls is missed)  | every 30 s |
-| Players exposing the local API              | `television` / power, volume, mute, channel, media and remote keys     | every 30 s |
-| Players without it (Player POP, Android TV) | skipped, with an explicit log line                                     | —          |
-| Cameras                                     | `camera` / `image` (dashboard image every minute, live view on demand) | own loop   |
-| Freebox Server                              | `text` / `text` connection state, `datarate` / `rate` download, upload | every 30 s |
+| Freebox side                                | Gladys feature (category / type)                                                   | Polling    |
+| ------------------------------------------- | ---------------------------------------------------------------------------------- | ---------- |
+| Opening sensor                              | `opening-sensor` / `binary` (1 = closed)                                           | every 30 s |
+| Motion sensor                               | `motion-sensor` / `binary` (1 = motion)                                            | every 30 s |
+| Battery, tamper contact                     | `battery` / `integer` (%), `tamper` / `binary`                                     | every 30 s |
+| Roller shutters (`store`, `store_slider`)   | `shutter` / `state` (open / stop / close), `shutter` / `position` (%)              | every 30 s |
+| Alarm control panel                         | `button` / `push` (arm, secondary arm, disarm, skip), `text` / `text`              | every 30 s |
+| Alarm keyfob                                | `button` / `click` (best effort: a press between two polls is missed)              | every 30 s |
+| Players exposing the local API              | `television` / power, volume, mute, channel, media and remote keys                 | every 30 s |
+| Players without it (Player POP, Android TV) | skipped, with an explicit log line                                                 | —          |
+| Cameras                                     | `camera` / `image` (dashboard image every minute, live view on demand)             | own loop   |
+| Freebox Server                              | `text` / `text` connection state, `datarate` / `rate` download, upload             | every 30 s |
+| Freebox Server (since 1.4.0)                | `switch` / `binary` Wi-Fi, `device-temperature-sensor` / `decimal` (°C) per sensor | every 30 s |
 
 External ids keep the native Freebox scheme (`freebox:{node}:{endpoint}`, `freebox:player:{id}:{type}`,
 `freebox:server:{feature}`), prefixed with `ext:<selector>:` as Gladys requires. Selectors are derived from the same
@@ -118,7 +129,7 @@ ids, so two homonyms never collide.
 
 ## Installation
 
-1. In Gladys (`>= 4.86.0`), open **Integrations**, find **Freebox** in the catalog and install it. Gladys pulls the
+1. In Gladys (`>= 5.1.0`), open **Integrations**, find **Freebox** in the catalog and install it. Gladys pulls the
    multi-arch image (`linux/amd64`, `linux/arm64`) from `ghcr.io/william-de71/gladys-freebox`.
 2. Gladys must run **behind the Freebox** (same local network), so that `mafreebox.freebox.fr` resolves to the box.
 3. Pair the integration (see [Pairing](#pairing)), grant the permissions in Freebox OS, then **Discover → Scan** and
@@ -134,8 +145,9 @@ ids, so two homonyms never collide.
 | Unpair the Freebox    | forgets the app token; revoke the app in Freebox OS as well to remove it from the box |
 
 Permissions to tick in **Freebox OS → Settings → Access management → Applications → Gladys Assistant**: home
-automation and alarm, cameras, Freebox Player control, and the settings modification for the reboot. The internet
-connection needs no permission: reading the settings is open to every paired app.
+automation and alarm, cameras, Freebox Player control, the settings modification for the reboot and the Wi-Fi switch,
+and the call log access for the **Phone calls** widget and trigger. The internet connection, the Wi-Fi state, the
+temperatures and the devices of the network need no permission: reading the settings is open to every paired app.
 
 ## Pairing
 
@@ -155,10 +167,33 @@ documented. Commands that rely on the virtual remote (`control/remote`) are kept
 reaches the navigation keys, but the user documentation flags them as best-effort. "Play" and "Pause" share the
 single `play_pause` command, and "Mute" toggles the real state read just before.
 
+## Widgets
+
+![The three Freebox widgets: the box with its rates and traffic history, the call log and the devices of the network (generated illustration, not a screenshot)](docs/assets/widgets.en.png)
+
+| Widget (key)                | Content                                                                                                      | Setting                              | Buttons                                      |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------ | -------------------------------------------- |
+| Freebox (`box`)             | rates, hottest temperature, RRD traffic chart, internet link, public IPv4, Wi-Fi, connected devices, fan     | `period`: hour, day, week            | Turn Wi-Fi off / on, Reboot (both confirmed) |
+| Phone calls (`calls`)       | the last 8 calls, type badge and date; number and duration in the detail panel                               | `show`: all, missed                  | Mark as read (when a call is unread)         |
+| Network devices (`network`) | connected count (Wi-Fi, Ethernet), up to 8 devices with IP and MAC address; manufacturer in the detail panel | `show`: connected, disconnected, all | —                                            |
+
+The images are generated from the real widget code (`docs/illustrations/render.sh`), not screenshots. The **Freebox**
+card reads the box when it is displayed (30-second cache); the two others read the snapshot of the watch loop, so they
+cost no request to the box. The call log needs the **call log access** permission: without it, the card says how to
+grant it.
+
 ## Scenes
 
-The integration declares no scene trigger or action of its own: every value is a device feature, usable in the scene
-editor of Gladys like any other.
+The integration declares two scene triggers and one scene action (category **Integrations** of the scene editor):
+
+| Key                       | Kind                                                | Filters                                              | Variables / outputs                                  |
+| ------------------------- | --------------------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------- |
+| `phone_call`              | trigger: a call entered the log (once it has ended) | `call_type` (multi-select), `number`                 | `call_type`, `number`, `name`, `duration`            |
+| `network_device_presence` | trigger: a device connected or left                 | `event` (`connected`, `disconnected`), `mac`, `name` | `event`, `mac`, `name`, `ip`, `connection`, `vendor` |
+| `wake_on_lan`             | action: the box sends a Wake-on-LAN packet          | `mac` (required)                                     | none                                                 |
+
+The first reading after a start is a baseline: no call nor presence change is replayed. Every other value is a device
+feature, usable in the scene editor of Gladys like any other.
 
 | When…                             | Trigger in Gladys                                           |
 | --------------------------------- | ----------------------------------------------------------- |
@@ -201,7 +236,7 @@ the image.
   those of the action results.
 - `test/release.test.js` covers the release script (versions, changelog, bump).
 
-Requirements: Gladys `>= 4.86.0` (store categories), Node.js `>= 22.20`.
+Requirements: Gladys `>= 5.1.0` (widgets, scene triggers and actions), Node.js `>= 22.20`.
 
 ## Release and commit convention
 

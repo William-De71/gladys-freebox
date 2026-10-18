@@ -432,8 +432,193 @@ export class FreeboxClient {
       path: '/system/reboot/',
     });
     if (data && data.success === false) {
-      throw new Error(`Freebox reboot refused: ${data.msg || 'unknown error'}`);
+      const error = new Error(`Freebox reboot refused: ${data.msg || 'unknown error'}`);
+      // `insufficient_rights` when the settings permission is not ticked.
+      error.code = data.error_code;
+      throw error;
     }
+  }
+
+  /**
+   * Run an authenticated request and return its `result`, or throw an error
+   * carrying the Freebox `error_code` (`insufficient_rights` when the app
+   * lacks a permission, which callers turn into a clear message).
+   * @param {string} appToken - The stored app token.
+   * @param {object} options - Request options (`path`, method, data...).
+   * @param {string} what - What is read, for the error message.
+   * @returns {Promise<any>} The `result` of the answer (null when absent).
+   * @example
+   * const system = await client.resultOf(appToken, { path: '/system/' }, 'system');
+   */
+  async resultOf(appToken, options, what) {
+    const { status, data } = await this.authRequest(appToken, options);
+    if (!data || typeof data !== 'object' || data.success !== true) {
+      const code = (data && data.error_code) || `http_${status}`;
+      const error = new Error(
+        `Freebox ${what} unavailable: ${(data && data.msg) || 'unexpected answer'} (${code})`,
+      );
+      error.code = code;
+      throw error;
+    }
+    return data.result === undefined ? null : data.result;
+  }
+
+  /**
+   * Read the system state: firmware, uptime, temperature sensors and fans.
+   * Readable by every paired app.
+   * @param {string} appToken - The stored app token.
+   * @returns {Promise<object>} The `result` of `/system/`.
+   * @see https://dev.freebox.fr/sdk/os/system/
+   * @example
+   * const system = await client.loadSystem(appToken);
+   */
+  async loadSystem(appToken) {
+    return (await this.resultOf(appToken, { path: '/system/' }, 'system state')) || {};
+  }
+
+  /**
+   * Read the Wi-Fi global configuration (`enabled`). Readable by every app.
+   * @param {string} appToken - The stored app token.
+   * @returns {Promise<object>} The `result` of `/wifi/config/`.
+   * @see https://dev.freebox.fr/sdk/os/wifi/
+   * @example
+   * const { enabled } = await client.loadWifiConfig(appToken);
+   */
+  async loadWifiConfig(appToken) {
+    return (await this.resultOf(appToken, { path: '/wifi/config/' }, 'Wi-Fi state')) || {};
+  }
+
+  /**
+   * Turn the Wi-Fi of the box on or off (every access point at once). Needs
+   * the "settings" permission.
+   * @param {string} appToken - The stored app token.
+   * @param {boolean} enabled - The wanted state.
+   * @returns {Promise<object>} The configuration the box applied.
+   * @example
+   * await client.setWifiEnabled(appToken, false);
+   */
+  async setWifiEnabled(appToken, enabled) {
+    return (
+      (await this.resultOf(
+        appToken,
+        { method: 'PUT', path: '/wifi/config/', data: { enabled: Boolean(enabled) } },
+        'Wi-Fi switch',
+      )) || {}
+    );
+  }
+
+  /**
+   * List the hosts the box knows on every browsable LAN interface (the
+   * active ones and the ones seen before). Readable by every app.
+   * @param {string} appToken - The stored app token.
+   * @returns {Promise<Array<object>>} The `LanHost` objects, each with the
+   * `interface` it was listed on.
+   * @see https://dev.freebox.fr/sdk/os/lan/
+   * @example
+   * const hosts = await client.loadLanHosts(appToken);
+   */
+  async loadLanHosts(appToken) {
+    const interfaces = asArray(
+      await this.resultOf(appToken, { path: '/lan/browser/interfaces/' }, 'LAN interfaces'),
+    );
+    const hosts = [];
+    for (const { name } of interfaces) {
+      if (!name) {
+        continue;
+      }
+      const listed = asArray(
+        await this.resultOf(
+          appToken,
+          { path: `/lan/browser/${encodeURIComponent(name)}/` },
+          `LAN hosts of "${name}"`,
+        ),
+      );
+      listed.forEach((host) => hosts.push({ ...host, interface: name }));
+    }
+    return hosts;
+  }
+
+  /**
+   * Send a Wake-on-LAN packet from the box.
+   * @param {string} appToken - The stored app token.
+   * @param {string} mac - The MAC address of the host to wake.
+   * @param {string} [lanInterface] - The LAN interface (`pub` by default).
+   * @returns {Promise<void>} Resolves once the box sent the packet.
+   * @example
+   * await client.wakeOnLan(appToken, '00:24:D4:7E:00:4C');
+   */
+  async wakeOnLan(appToken, mac, lanInterface = 'pub') {
+    await this.resultOf(
+      appToken,
+      {
+        method: 'POST',
+        path: `/lan/wol/${encodeURIComponent(lanInterface)}/`,
+        data: { mac, password: '' },
+      },
+      'Wake-on-LAN',
+    );
+  }
+
+  /**
+   * Read the call log, most recent first. Needs the "calls" permission
+   * (`insufficient_rights` otherwise).
+   * @param {string} appToken - The stored app token.
+   * @returns {Promise<Array<object>>} The `CallEntry` objects.
+   * @see https://dev.freebox.fr/sdk/os/call/
+   * @example
+   * const calls = await client.loadCallLog(appToken);
+   */
+  async loadCallLog(appToken) {
+    return asArray(await this.resultOf(appToken, { path: '/call/log/' }, 'call log'));
+  }
+
+  /**
+   * Mark every call of the log as read. Needs the "calls" permission.
+   * @param {string} appToken - The stored app token.
+   * @returns {Promise<void>} Resolves once done.
+   * @example
+   * await client.markCallsAsRead(appToken);
+   */
+  async markCallsAsRead(appToken) {
+    await this.resultOf(
+      appToken,
+      { method: 'POST', path: '/call/log/mark_all_as_read/' },
+      'call log',
+    );
+  }
+
+  /**
+   * Read the history of the internet rates kept by the box (`net` database
+   * of the RRD API), in bytes per second. The POST form needs the "settings"
+   * permission; the documentation allows the same request as a GET without
+   * it, which is tried when the POST is refused.
+   * @param {string} appToken - The stored app token.
+   * @param {number} dateStart - Start of the period, in seconds since the epoch.
+   * @returns {Promise<Array<object>>} Points `{ time, rate_down, rate_up }`.
+   * @see https://dev.freebox.fr/sdk/os/rrd/
+   * @example
+   * const points = await client.loadNetHistory(appToken, Math.floor(Date.now() / 1000) - 86400);
+   */
+  async loadNetHistory(appToken, dateStart) {
+    const query = { db: 'net', fields: ['rate_down', 'rate_up'], date_start: dateStart };
+    let result;
+    try {
+      result = await this.resultOf(
+        appToken,
+        { method: 'POST', path: '/rrd/', data: query },
+        'rate history',
+      );
+    } catch (e) {
+      if (e.code !== 'insufficient_rights') {
+        throw e;
+      }
+      result = await this.resultOf(
+        appToken,
+        { method: 'GET', path: '/rrd/', data: query },
+        'rate history',
+      );
+    }
+    return asArray(result && result.data);
   }
 
   /** Reset the in-memory session (e.g. on unpair). */

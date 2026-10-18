@@ -10,7 +10,7 @@
   },
   "version": "1.3.0",
   "docker_image": "ghcr.io/william-de71/gladys-freebox:1.3.0",
-  "gladys_version": ">=4.86.0",
+  "gladys_version": ">=5.1.0",
   "cover_image": "https://raw.githubusercontent.com/William-De71/gladys-freebox/main/cover.jpg",
   "categories": ["security", "multimedia", "network"],
   "transports": ["local"],
@@ -99,6 +99,469 @@
         "es": "Desvincular la Freebox"
       },
       "timeout_seconds": 15
+    }
+  ],
+  "widgets": [
+    {
+      "key": "box",
+      "label": {
+        "en": "Freebox",
+        "fr": "Freebox",
+        "de": "Freebox",
+        "es": "Freebox"
+      },
+      "description": {
+        "en": "Rates, traffic history, temperature, Wi-Fi and reboot of the box.",
+        "fr": "Débits, historique du trafic, température, Wi-Fi et redémarrage de la box.",
+        "de": "Datenraten, Verkehrsverlauf, Temperatur, WLAN und Neustart der Box.",
+        "es": "Velocidades, historial de tráfico, temperatura, Wi-Fi y reinicio de la box."
+      },
+      "icon": "server",
+      "settings": [
+        {
+          "key": "period",
+          "type": "select",
+          "label": {
+            "en": "Traffic history",
+            "fr": "Historique du trafic",
+            "de": "Verkehrsverlauf",
+            "es": "Historial de tráfico"
+          },
+          "default": "day",
+          "options": [
+            {
+              "value": "hour",
+              "label": {
+                "en": "Last hour",
+                "fr": "Dernière heure",
+                "de": "Letzte Stunde",
+                "es": "Última hora"
+              }
+            },
+            {
+              "value": "day",
+              "label": {
+                "en": "Last 24 hours",
+                "fr": "Dernières 24 heures",
+                "de": "Letzte 24 Stunden",
+                "es": "Últimas 24 horas"
+              }
+            },
+            {
+              "value": "week",
+              "label": {
+                "en": "Last 7 days",
+                "fr": "7 derniers jours",
+                "de": "Letzte 7 Tage",
+                "es": "Últimos 7 días"
+              }
+            }
+          ]
+        }
+      ],
+      "action_timeout_seconds": 30
+    },
+    {
+      "key": "calls",
+      "label": {
+        "en": "Phone calls",
+        "fr": "Appels téléphoniques",
+        "de": "Telefonanrufe",
+        "es": "Llamadas telefónicas"
+      },
+      "description": {
+        "en": "The call log of the Freebox: missed, received and outgoing calls.",
+        "fr": "Le journal d'appels de la Freebox : appels manqués, reçus et émis.",
+        "de": "Das Anrufprotokoll der Freebox: verpasste, angenommene und ausgehende Anrufe.",
+        "es": "El registro de llamadas de la Freebox: perdidas, recibidas y salientes."
+      },
+      "icon": "phone",
+      "settings": [
+        {
+          "key": "show",
+          "type": "select",
+          "label": {
+            "en": "Calls shown",
+            "fr": "Appels affichés",
+            "de": "Angezeigte Anrufe",
+            "es": "Llamadas mostradas"
+          },
+          "default": "all",
+          "options": [
+            {
+              "value": "all",
+              "label": {
+                "en": "All calls",
+                "fr": "Tous les appels",
+                "de": "Alle Anrufe",
+                "es": "Todas las llamadas"
+              }
+            },
+            {
+              "value": "missed",
+              "label": {
+                "en": "Missed calls",
+                "fr": "Appels manqués",
+                "de": "Verpasste Anrufe",
+                "es": "Llamadas perdidas"
+              }
+            }
+          ]
+        }
+      ],
+      "action_timeout_seconds": 30
+    },
+    {
+      "key": "network",
+      "label": {
+        "en": "Network devices",
+        "fr": "Appareils du réseau",
+        "de": "Netzwerkgeräte",
+        "es": "Dispositivos de red"
+      },
+      "description": {
+        "en": "The devices connected to the Freebox, by Wi-Fi or Ethernet.",
+        "fr": "Les appareils connectés à la Freebox, en Wi-Fi ou en Ethernet.",
+        "de": "Die mit der Freebox verbundenen Geräte, per WLAN oder Ethernet.",
+        "es": "Los dispositivos conectados a la Freebox, por Wi-Fi o Ethernet."
+      },
+      "icon": "smartphone",
+      "settings": [
+        {
+          "key": "show",
+          "type": "select",
+          "label": {
+            "en": "Devices shown",
+            "fr": "Appareils affichés",
+            "de": "Angezeigte Geräte",
+            "es": "Dispositivos mostrados"
+          },
+          "default": "connected",
+          "options": [
+            {
+              "value": "connected",
+              "label": {
+                "en": "Connected",
+                "fr": "Connectés",
+                "de": "Verbunden",
+                "es": "Conectados"
+              }
+            },
+            {
+              "value": "disconnected",
+              "label": {
+                "en": "Disconnected",
+                "fr": "Déconnectés",
+                "de": "Getrennt",
+                "es": "Desconectados"
+              }
+            },
+            {
+              "value": "all",
+              "label": {
+                "en": "All",
+                "fr": "Tous",
+                "de": "Alle",
+                "es": "Todos"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "scene_triggers": [
+    {
+      "key": "phone_call",
+      "label": {
+        "en": "Freebox: phone call",
+        "fr": "Freebox : appel téléphonique",
+        "de": "Freebox: Telefonanruf",
+        "es": "Freebox: llamada telefónica"
+      },
+      "description": {
+        "en": "A call enters the Freebox log, once it has ended.",
+        "fr": "Un appel entre dans le journal de la Freebox, une fois terminé.",
+        "de": "Ein Anruf erscheint im Protokoll der Freebox, sobald er beendet ist.",
+        "es": "Una llamada entra en el registro de la Freebox, una vez terminada."
+      },
+      "fields": [
+        {
+          "key": "call_type",
+          "type": "multi_select",
+          "label": {
+            "en": "Call type",
+            "fr": "Type d'appel",
+            "de": "Anruftyp",
+            "es": "Tipo de llamada"
+          },
+          "options": [
+            {
+              "value": "missed",
+              "label": {
+                "en": "Missed",
+                "fr": "Manqué",
+                "de": "Verpasst",
+                "es": "Perdida"
+              }
+            },
+            {
+              "value": "accepted",
+              "label": {
+                "en": "Received",
+                "fr": "Reçu",
+                "de": "Angenommen",
+                "es": "Recibida"
+              }
+            },
+            {
+              "value": "outgoing",
+              "label": {
+                "en": "Outgoing",
+                "fr": "Émis",
+                "de": "Ausgehend",
+                "es": "Saliente"
+              }
+            }
+          ]
+        },
+        {
+          "key": "number",
+          "type": "string",
+          "label": {
+            "en": "Phone number",
+            "fr": "Numéro de téléphone",
+            "de": "Telefonnummer",
+            "es": "Número de teléfono"
+          },
+          "placeholder": {
+            "en": "e.g. 0612345678",
+            "fr": "ex. 0612345678",
+            "de": "z. B. 0612345678",
+            "es": "p. ej. 0612345678"
+          }
+        }
+      ],
+      "variables": [
+        {
+          "key": "call_type",
+          "type": "string",
+          "label": {
+            "en": "Call type (missed, accepted, outgoing)",
+            "fr": "Type d'appel (missed, accepted, outgoing)",
+            "de": "Anruftyp (missed, accepted, outgoing)",
+            "es": "Tipo de llamada (missed, accepted, outgoing)"
+          }
+        },
+        {
+          "key": "number",
+          "type": "string",
+          "label": {
+            "en": "Phone number",
+            "fr": "Numéro de téléphone",
+            "de": "Telefonnummer",
+            "es": "Número de teléfono"
+          }
+        },
+        {
+          "key": "name",
+          "type": "string",
+          "label": {
+            "en": "Contact name",
+            "fr": "Nom du contact",
+            "de": "Kontaktname",
+            "es": "Nombre del contacto"
+          }
+        },
+        {
+          "key": "duration",
+          "type": "number",
+          "label": {
+            "en": "Duration (seconds)",
+            "fr": "Durée (secondes)",
+            "de": "Dauer (Sekunden)",
+            "es": "Duración (segundos)"
+          }
+        }
+      ]
+    },
+    {
+      "key": "network_device_presence",
+      "label": {
+        "en": "Freebox: device connected or gone",
+        "fr": "Freebox : appareil connecté ou parti",
+        "de": "Freebox: Gerät verbunden oder weg",
+        "es": "Freebox: dispositivo conectado o ido"
+      },
+      "description": {
+        "en": "A device of the network connects to the Freebox or leaves it.",
+        "fr": "Un appareil du réseau se connecte à la Freebox ou la quitte.",
+        "de": "Ein Netzwerkgerät verbindet sich mit der Freebox oder trennt sich.",
+        "es": "Un dispositivo de la red se conecta a la Freebox o se va."
+      },
+      "fields": [
+        {
+          "key": "event",
+          "type": "select",
+          "label": {
+            "en": "Event",
+            "fr": "Événement",
+            "de": "Ereignis",
+            "es": "Evento"
+          },
+          "options": [
+            {
+              "value": "connected",
+              "label": {
+                "en": "Connected",
+                "fr": "Connecté",
+                "de": "Verbunden",
+                "es": "Conectado"
+              }
+            },
+            {
+              "value": "disconnected",
+              "label": {
+                "en": "Disconnected",
+                "fr": "Déconnecté",
+                "de": "Getrennt",
+                "es": "Desconectado"
+              }
+            }
+          ]
+        },
+        {
+          "key": "mac",
+          "type": "string",
+          "label": {
+            "en": "MAC address",
+            "fr": "Adresse MAC",
+            "de": "MAC-Adresse",
+            "es": "Dirección MAC"
+          },
+          "placeholder": {
+            "en": "AA:BB:CC:DD:EE:FF",
+            "fr": "AA:BB:CC:DD:EE:FF",
+            "de": "AA:BB:CC:DD:EE:FF",
+            "es": "AA:BB:CC:DD:EE:FF"
+          },
+          "description": {
+            "en": "Upper case, as the Network devices widget shows it.",
+            "fr": "En majuscules, comme l'affiche le widget Appareils du réseau.",
+            "de": "In Großbuchstaben, wie im Widget Netzwerkgeräte angezeigt.",
+            "es": "En mayúsculas, como lo muestra el widget Dispositivos de red."
+          }
+        },
+        {
+          "key": "name",
+          "type": "string",
+          "label": {
+            "en": "Device name",
+            "fr": "Nom de l'appareil",
+            "de": "Gerätename",
+            "es": "Nombre del dispositivo"
+          }
+        }
+      ],
+      "variables": [
+        {
+          "key": "event",
+          "type": "string",
+          "label": {
+            "en": "Event (connected, disconnected)",
+            "fr": "Événement (connected, disconnected)",
+            "de": "Ereignis (connected, disconnected)",
+            "es": "Evento (connected, disconnected)"
+          }
+        },
+        {
+          "key": "mac",
+          "type": "string",
+          "label": {
+            "en": "MAC address",
+            "fr": "Adresse MAC",
+            "de": "MAC-Adresse",
+            "es": "Dirección MAC"
+          }
+        },
+        {
+          "key": "name",
+          "type": "string",
+          "label": {
+            "en": "Device name",
+            "fr": "Nom de l'appareil",
+            "de": "Gerätename",
+            "es": "Nombre del dispositivo"
+          }
+        },
+        {
+          "key": "ip",
+          "type": "string",
+          "label": {
+            "en": "IP address",
+            "fr": "Adresse IP",
+            "de": "IP-Adresse",
+            "es": "Dirección IP"
+          }
+        },
+        {
+          "key": "connection",
+          "type": "string",
+          "label": {
+            "en": "Connection (wifi, ethernet)",
+            "fr": "Connexion (wifi, ethernet)",
+            "de": "Verbindung (wifi, ethernet)",
+            "es": "Conexión (wifi, ethernet)"
+          }
+        },
+        {
+          "key": "vendor",
+          "type": "string",
+          "label": {
+            "en": "Manufacturer",
+            "fr": "Fabricant",
+            "de": "Hersteller",
+            "es": "Fabricante"
+          }
+        }
+      ]
+    }
+  ],
+  "scene_actions": [
+    {
+      "key": "wake_on_lan",
+      "label": {
+        "en": "Freebox: wake a computer (Wake-on-LAN)",
+        "fr": "Freebox : réveiller un ordinateur (Wake-on-LAN)",
+        "de": "Freebox: Computer aufwecken (Wake-on-LAN)",
+        "es": "Freebox: despertar un ordenador (Wake-on-LAN)"
+      },
+      "description": {
+        "en": "The Freebox sends a Wake-on-LAN packet to this MAC address.",
+        "fr": "La Freebox envoie un paquet Wake-on-LAN à cette adresse MAC.",
+        "de": "Die Freebox sendet ein Wake-on-LAN-Paket an diese MAC-Adresse.",
+        "es": "La Freebox envía un paquete Wake-on-LAN a esta dirección MAC."
+      },
+      "timeout_seconds": 15,
+      "fields": [
+        {
+          "key": "mac",
+          "type": "string",
+          "required": true,
+          "label": {
+            "en": "MAC address",
+            "fr": "Adresse MAC",
+            "de": "MAC-Adresse",
+            "es": "Dirección MAC"
+          },
+          "placeholder": {
+            "en": "AA:BB:CC:DD:EE:FF",
+            "fr": "AA:BB:CC:DD:EE:FF",
+            "de": "AA:BB:CC:DD:EE:FF",
+            "es": "AA:BB:CC:DD:EE:FF"
+          }
+        }
+      ]
     }
   ]
 }

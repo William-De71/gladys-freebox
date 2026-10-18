@@ -5,14 +5,15 @@
 [![Lizenz: Apache-2.0](https://img.shields.io/badge/Lizenz-Apache--2.0-blue.svg)](LICENSE)
 [![Neueste Version](https://img.shields.io/github/v/release/William-De71/gladys-freebox?sort=semver)](https://github.com/William-De71/gladys-freebox/releases)
 [![CI](https://img.shields.io/github/actions/workflow/status/William-De71/gladys-freebox/release.yml?branch=main&label=CI)](https://github.com/William-De71/gladys-freebox/actions/workflows/release.yml)
-[![Gladys](https://img.shields.io/badge/Gladys-%E2%89%A5%204.86.0-2f6fb5)](https://gladysassistant.com)
+[![Gladys](https://img.shields.io/badge/Gladys-%E2%89%A5%205.1.0-2f6fb5)](https://gladysassistant.com)
 
 ![Freebox für Gladys Assistant](cover.jpg)
 
 Externe [Gladys Assistant](https://gladysassistant.com)-Integration, die Ihre **Freebox** in Gladys bringt:
 Hausautomations-Sensoren, Rollläden und Alarmanlage, Freebox Player (Ein/Aus, Lautstärke, Sender, Wiedergabe,
-Fernbedienungstasten), Kameras sowie den Zustand der Internetverbindung mit Download- und Upload-Rate. Basiert auf
-`@gladysassistant/integration-sdk` 0.15.
+Fernbedienungstasten), Kameras, den Zustand der Internetverbindung mit Download- und Upload-Rate, das WLAN und die
+Temperaturen der Box, drei Dashboard-Widgets (die Box, das Anrufprotokoll, die Netzwerkgeräte) sowie Szenen-Auslöser.
+Basiert auf `@gladysassistant/integration-sdk` 0.15.
 
 Alles bleibt **in Ihrem lokalen Netzwerk**: Die Integration spricht mit der Freebox-OS-API unter
 `mafreebox.freebox.fr`, ohne Free-Konto und ohne Cloud.
@@ -31,6 +32,7 @@ Benutzerdokumentation: [English](docs/en.md) · [Français](docs/fr.md) · [Deut
 - [Konfiguration](#konfiguration)
 - [Kopplung](#kopplung)
 - [Freebox Player](#freebox-player)
+- [Widgets](#widgets)
 - [Szenen](#szenen)
 - [Transport](#transport)
 - [Entwicklung](#entwicklung)
@@ -52,13 +54,21 @@ Benutzerdokumentation: [English](docs/en.md) · [Français](docs/fr.md) · [Deut
 - **Internetverbindung**: ein Gerät **Freebox Server** mit dem Zustand der Verbindung (`up`, `down`, `going_up`,
   `going_down`) und der Download- und Upload-Rate in Mbit/s, um die Leitung zu überwachen und Szenen auszulösen, wenn
   sie ausfällt.
+- **WLAN und Temperaturen**: Das Gerät **Freebox Server** trägt außerdem einen WLAN-Schalter (`switch` / `binary`,
+  alle Zugangspunkte der Box) und einen `device-temperature-sensor` pro Sensor, den die Box meldet.
+- **Dashboard-Widgets**: **Freebox** (Datenraten, von der Box gespeicherter Verkehrsverlauf, Temperatur,
+  Internetverbindung, WLAN, verbundene Geräte, Lüfter, Schaltflächen zum Schalten des WLANs und zum Neustart),
+  **Telefonanrufe** (Anrufprotokoll, als gelesen markieren) und **Netzwerkgeräte** (verbunden oder weg, mit IP- und
+  MAC-Adresse).
+- **Szenen**: Auslöser bei einem **Telefonanruf** und bei einem **Gerät, das sich mit dem Netzwerk verbindet oder es
+  verlässt**, sowie eine Aktion **Wake-on-LAN**.
 - **Konfigurationsaktionen**: koppeln, Verbindung testen, Freebox neu starten, Kopplung aufheben.
 - **Vier Sprachen** für den Konfigurationsbildschirm und die Ergebnisse der Aktionen: Englisch, Französisch,
   Deutsch, Spanisch.
 
 Jeder Zustand wird **bei einer Änderung** veröffentlicht, und ein gerade in Gladys hinzugefügtes Gerät erhält sofort
-seine aktuellen Werte. Die Integration deklariert kein eigenes Dashboard-Widget: Die Geräte nutzen die Boxen von
-Gladys.
+seine aktuellen Werte. Die Netzwerkgeräte und das Anrufprotokoll liest die Integration selbst alle 30 Sekunden (kein
+Gerät nötig): Sie speisen die Widgets und die Szenen-Auslöser.
 
 ## Architektur
 
@@ -106,18 +116,19 @@ sequenceDiagram
 
 ## Geräte
 
-| Freebox-Seite                            | Gladys-Funktion (Kategorie / Typ)                                                | Abfrage         |
-| ---------------------------------------- | -------------------------------------------------------------------------------- | --------------- |
-| Öffnungssensor                           | `opening-sensor` / `binary` (1 = geschlossen)                                    | alle 30 s       |
-| Bewegungssensor                          | `motion-sensor` / `binary` (1 = Bewegung)                                        | alle 30 s       |
-| Batterie, Sabotagekontakt                | `battery` / `integer` (%), `tamper` / `binary`                                   | alle 30 s       |
-| Rollläden (`store`, `store_slider`)      | `shutter` / `state` (öffnen / stopp / schließen), `shutter` / `position` (%)     | alle 30 s       |
-| Alarmzentrale                            | `button` / `push` (scharf, zweiter Bereich, unscharf, überspringen), `text`      | alle 30 s       |
-| Alarm-Fernbedienung                      | `button` / `click` (ohne Gewähr: ein Druck zwischen zwei Abfragen geht verloren) | alle 30 s       |
-| Player mit lokaler API                   | `television` / Ein/Aus, Lautstärke, Stumm, Sender, Wiedergabe und Tasten         | alle 30 s       |
-| Player ohne sie (Player POP, Android TV) | übersprungen, mit einer eindeutigen Logzeile                                     | —               |
-| Kameras                                  | `camera` / `image` (Bild jede Minute, Live-Ansicht auf Abruf)                    | eigene Schleife |
-| Freebox Server                           | `text` / `text` Verbindungszustand, `datarate` / `rate` Download, Upload         | alle 30 s       |
+| Freebox-Seite                            | Gladys-Funktion (Kategorie / Typ)                                                 | Abfrage         |
+| ---------------------------------------- | --------------------------------------------------------------------------------- | --------------- |
+| Öffnungssensor                           | `opening-sensor` / `binary` (1 = geschlossen)                                     | alle 30 s       |
+| Bewegungssensor                          | `motion-sensor` / `binary` (1 = Bewegung)                                         | alle 30 s       |
+| Batterie, Sabotagekontakt                | `battery` / `integer` (%), `tamper` / `binary`                                    | alle 30 s       |
+| Rollläden (`store`, `store_slider`)      | `shutter` / `state` (öffnen / stopp / schließen), `shutter` / `position` (%)      | alle 30 s       |
+| Alarmzentrale                            | `button` / `push` (scharf, zweiter Bereich, unscharf, überspringen), `text`       | alle 30 s       |
+| Alarm-Fernbedienung                      | `button` / `click` (ohne Gewähr: ein Druck zwischen zwei Abfragen geht verloren)  | alle 30 s       |
+| Player mit lokaler API                   | `television` / Ein/Aus, Lautstärke, Stumm, Sender, Wiedergabe und Tasten          | alle 30 s       |
+| Player ohne sie (Player POP, Android TV) | übersprungen, mit einer eindeutigen Logzeile                                      | —               |
+| Kameras                                  | `camera` / `image` (Bild jede Minute, Live-Ansicht auf Abruf)                     | eigene Schleife |
+| Freebox Server                           | `text` / `text` Verbindungszustand, `datarate` / `rate` Download, Upload          | alle 30 s       |
+| Freebox Server (seit 1.4.0)              | `switch` / `binary` WLAN, `device-temperature-sensor` / `decimal` (°C) pro Sensor | alle 30 s       |
 
 Die externen IDs behalten das native Schema der Freebox (`freebox:{node}:{endpoint}`, `freebox:player:{id}:{type}`,
 `freebox:server:{feature}`), mit dem von Gladys verlangten Präfix `ext:<selector>:`. Die Selektoren werden aus
@@ -125,7 +136,7 @@ denselben IDs abgeleitet, sodass zwei gleichnamige Geräte nie kollidieren.
 
 ## Installation
 
-1. Öffnen Sie in Gladys (`>= 4.86.0`) **Integrationen**, suchen Sie **Freebox** im Katalog und installieren Sie sie.
+1. Öffnen Sie in Gladys (`>= 5.1.0`) **Integrationen**, suchen Sie **Freebox** im Katalog und installieren Sie sie.
    Gladys lädt das Multi-Arch-Image (`linux/amd64`, `linux/arm64`) von `ghcr.io/william-de71/gladys-freebox`.
 2. Gladys muss **hinter der Freebox** laufen (gleiches lokales Netzwerk), damit `mafreebox.freebox.fr` auf die Box
    zeigt.
@@ -142,8 +153,10 @@ denselben IDs abgeleitet, sodass zwei gleichnamige Geräte nie kollidieren.
 | Kopplung aufheben       | vergisst das App-Token; entziehen Sie die App auch in Freebox OS, um sie von der Box zu entfernen |
 
 Zu aktivierende Berechtigungen in **Freebox OS → Settings → Access management → Applications → Gladys Assistant**:
-Hausautomation und Alarm, Kameras, Steuerung des Freebox Players und für den Neustart das Ändern der Einstellungen.
-Die Internetverbindung braucht keine Berechtigung: Das Lesen der Einstellungen steht jeder gekoppelten App offen.
+Hausautomation und Alarm, Kameras, Steuerung des Freebox Players, das Ändern der Einstellungen für den Neustart und
+den WLAN-Schalter sowie der Zugriff auf das Anrufprotokoll für das Widget und den Auslöser **Telefonanrufe**.
+Internetverbindung, WLAN-Zustand, Temperaturen und Netzwerkgeräte brauchen keine Berechtigung: Das Lesen der
+Einstellungen steht jeder gekoppelten App offen.
 
 ## Kopplung
 
@@ -164,10 +177,33 @@ erhalten, weil kein dokumentierter Endpunkt die Navigationstasten erreicht, werd
 als ohne Gewähr gekennzeichnet. „Play“ und „Pause“ teilen sich den einzigen Befehl `play_pause`, und „Stumm“
 schaltet den unmittelbar zuvor gelesenen tatsächlichen Zustand um.
 
+## Widgets
+
+![Die drei Freebox-Widgets: die Box mit Datenraten und Verkehrsverlauf, das Anrufprotokoll und die Netzwerkgeräte (generierte Illustration, kein Screenshot)](docs/assets/widgets.de.png)
+
+| Widget (Schlüssel)         | Inhalt                                                                                                                        | Einstellung                       | Schaltflächen                                   |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------- | ----------------------------------------------- |
+| Freebox (`box`)            | Datenraten, höchste Temperatur, Verkehrsdiagramm (RRD), Internetverbindung, öffentliche IPv4, WLAN, verbundene Geräte, Lüfter | `period`: Stunde, Tag, Woche      | WLAN aus / ein, Neu starten (mit Bestätigung)   |
+| Telefonanrufe (`calls`)    | die letzten 8 Anrufe mit Typ und Datum; Nummer und Dauer im Detailfenster                                                     | `show`: alle, verpasste           | Als gelesen markieren (bei ungelesenen Anrufen) |
+| Netzwerkgeräte (`network`) | Anzahl verbundener Geräte (WLAN, Ethernet), bis zu 8 Geräte mit IP- und MAC-Adresse; Hersteller im Detailfenster              | `show`: verbunden, getrennt, alle | —                                               |
+
+Die Bilder werden aus dem echten Widget-Code erzeugt (`docs/illustrations/render.sh`), es sind keine Screenshots. Die
+Karte **Freebox** liest die Box beim Anzeigen (30 Sekunden Cache); die beiden anderen lesen den Stand der
+Überwachungsschleife und kosten daher keine Anfrage an die Box. Das Anrufprotokoll braucht die Berechtigung **Zugriff
+auf das Anrufprotokoll**: Ohne sie erklärt die Karte, wie man sie erteilt.
+
 ## Szenen
 
-Die Integration deklariert keine eigenen Szenen-Auslöser oder -Aktionen: Jeder Wert ist eine Gerätefunktion und im
-Szenen-Editor von Gladys wie jede andere nutzbar.
+Die Integration deklariert zwei Szenen-Auslöser und eine Szenen-Aktion (Kategorie **Integrationen** des Szenen-Editors):
+
+| Schlüssel                 | Art                                                               | Filter                                               | Variablen / Ausgaben                                 |
+| ------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------- |
+| `phone_call`              | Auslöser: ein Anruf ist ins Protokoll gekommen (nach seinem Ende) | `call_type` (Mehrfachauswahl), `number`              | `call_type`, `number`, `name`, `duration`            |
+| `network_device_presence` | Auslöser: ein Gerät hat sich verbunden oder ist weg               | `event` (`connected`, `disconnected`), `mac`, `name` | `event`, `mac`, `name`, `ip`, `connection`, `vendor` |
+| `wake_on_lan`             | Aktion: die Box sendet ein Wake-on-LAN-Paket                      | `mac` (Pflicht)                                      | keine                                                |
+
+Die erste Lesung nach einem Start dient als Ausgangsstand: Kein Anruf und keine Anwesenheitsänderung wird nachgeholt.
+Alle anderen Werte sind Gerätefunktionen und im Szenen-Editor von Gladys wie jede andere nutzbar.
 
 | Wenn…                                    | Auslöser in Gladys                                               |
 | ---------------------------------------- | ---------------------------------------------------------------- |
@@ -210,7 +246,7 @@ und ist nicht Teil des Images.
   `test/messages.test.js` die der Aktionsergebnisse.
 - `test/release.test.js` deckt das Release-Skript ab (Versionen, Changelog, Versionsanhebung).
 
-Voraussetzungen: Gladys `>= 4.86.0` (Store-Kategorien), Node.js `>= 22.20`.
+Voraussetzungen: Gladys `>= 5.1.0` (Widgets, Szenen-Auslöser und -Aktionen), Node.js `>= 22.20`.
 
 ## Release und Commit-Konvention
 

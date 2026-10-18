@@ -490,16 +490,21 @@ export const CONNECTION_STATES = ['going_up', 'up', 'going_down', 'down'];
 const MAX_RATE_MBPS = 10000;
 
 /**
- * Build the Freebox Server device: the internet connection of the box.
+ * Build the Freebox Server device: the internet connection of the box, its
+ * Wi-Fi switch and its temperature sensors.
  *
  * Published once per integration (one box per Gladys), with fixed ids: the
  * rates are what the box carries right now, read from `/connection/`, and the
- * state is the raw Freebox value, the one a scene compares to.
+ * state is the raw Freebox value, the one a scene compares to. The
+ * temperature sensors are the ones the box lists in `/system/` (their ids
+ * depend on the model), so a box read without its system state simply has
+ * none.
+ * @param {object} [system] - readSystem() of the box, when it could be read.
  * @returns {object} Gladys device.
  * @example
  * buildServerDevice(); // { external_id: 'freebox:server', ... }
  */
-export function buildServerDevice() {
+export function buildServerDevice(system = null) {
   const externalId = `freebox:${SERVER.EXTERNAL_ID_SEGMENT}`;
   const selector = `freebox-${SERVER.EXTERNAL_ID_SEGMENT}`;
   const rate = (key, name) => ({
@@ -537,8 +542,57 @@ export function buildServerDevice() {
       },
       rate('rate-down', 'Download rate'),
       rate('rate-up', 'Upload rate'),
+      {
+        name: 'Wi-Fi',
+        external_id: `${externalId}:${SERVER.WIFI_KEY}`,
+        selector: `${selector}-${SERVER.WIFI_KEY}`,
+        category: DEVICE_FEATURE_CATEGORIES.SWITCH,
+        type: DEVICE_FEATURE_TYPES.SWITCH.BINARY,
+        read_only: false,
+        keep_history: true,
+        has_feedback: true,
+        min: 0,
+        max: 1,
+      },
+      ...((system && system.sensors) || []).map((sensor) => {
+        const key = `${SERVER.SENSOR_PREFIX}${sensor.id}`;
+        return {
+          name: sensor.name,
+          external_id: `${externalId}:${key}`,
+          selector: `${selector}-${key.replace(/_/g, '-')}`,
+          category: DEVICE_FEATURE_CATEGORIES.DEVICE_TEMPERATURE_SENSOR,
+          type: DEVICE_FEATURE_TYPES.SENSOR.DECIMAL,
+          unit: DEVICE_FEATURE_UNITS.CELSIUS,
+          read_only: true,
+          keep_history: true,
+          has_feedback: false,
+          min: -100,
+          max: 150,
+        };
+      }),
     ],
   };
+}
+
+/**
+ * Turn the system state and the Wi-Fi configuration into the values of the
+ * server features added in 1.4.0.
+ * @param {object|null} system - readSystem() of the box, or null.
+ * @param {object|null} wifi - The `result` of `/wifi/config/`, or null.
+ * @returns {object} The values, keyed by feature (`wifi`, `temp-<id>`).
+ * @example
+ * readServerExtras({ sensors: [{ id: 'temp_cpum', value: 60 }] }, { enabled: true });
+ * // { wifi: 1, 'temp-temp_cpum': 60 }
+ */
+export function readServerExtras(system, wifi) {
+  const values = {};
+  if (wifi && typeof wifi.enabled === 'boolean') {
+    values[SERVER.WIFI_KEY] = wifi.enabled ? 1 : 0;
+  }
+  ((system && system.sensors) || []).forEach((sensor) => {
+    values[`${SERVER.SENSOR_PREFIX}${sensor.id}`] = sensor.value;
+  });
+  return values;
 }
 
 /**

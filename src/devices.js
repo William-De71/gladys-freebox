@@ -17,7 +17,9 @@ import {
   convertPlayer,
   getPlayerBaseUrl,
   readConnection,
+  readServerExtras,
 } from './freebox/convert.js';
+import { readSystem } from './freebox/read.js';
 import { readValues, writeValues, COVER_STATE } from './freebox/deviceMapping.js';
 import { captureCameraImage } from './freebox/camera.js';
 import { PLAYER, SERVER } from './freebox/constants.js';
@@ -120,8 +122,15 @@ export async function buildDiscoveredDevices(gladys, client, appToken) {
   });
 
   // The internet connection of the box: always readable once paired, whatever
-  // permissions the user ticked.
-  devices.push(buildServerDevice());
+  // permissions the user ticked. The system state only adds the temperature
+  // sensors: a box that does not answer it still gets its server device.
+  let system = null;
+  try {
+    system = readSystem(await client.loadSystem(appToken));
+  } catch (e) {
+    logger.warn(`Unable to read the Freebox system state: ${e.message}`);
+  }
+  devices.push(buildServerDevice(system));
 
   logger.info(`Freebox discovery: ${devices.length} device(s) built`);
 
@@ -415,7 +424,34 @@ async function pollPlayer(gladys, client, appToken, device) {
  * await pollServer(gladys, client, appToken, device);
  */
 async function pollServer(gladys, client, appToken, device) {
-  const values = readConnection(await client.loadConnectionStatus(appToken));
+  const keys = (device.features || []).map(
+    (feature) => toNativeId(gladys, feature.external_id).split(':')[2],
+  );
+  // Only read what the device carries: a server created before 1.4.0 has
+  // neither the Wi-Fi switch nor the temperatures until the user updates it.
+  const optional = async (wanted, read, what) => {
+    if (!wanted) {
+      return null;
+    }
+    try {
+      return await read();
+    } catch (e) {
+      logger.debug(`Freebox server poll: ${what} unreadable: ${e.message}`);
+      return null;
+    }
+  };
+  const [system, wifi] = await Promise.all([
+    optional(
+      keys.some((key) => key && key.startsWith(SERVER.SENSOR_PREFIX)),
+      async () => readSystem(await client.loadSystem(appToken)),
+      'system state',
+    ),
+    optional(keys.includes(SERVER.WIFI_KEY), () => client.loadWifiConfig(appToken), 'Wi-Fi'),
+  ]);
+  const values = {
+    ...readConnection(await client.loadConnectionStatus(appToken)),
+    ...readServerExtras(system, wifi),
+  };
   const states = [];
   (device.features || []).forEach((feature) => {
     const key = toNativeId(gladys, feature.external_id).split(':')[2];
@@ -507,6 +543,11 @@ export async function setDeviceValue(gladys, client, appToken, rawDevice, featur
     return;
   }
 
+  if (nodeId === SERVER.EXTERNAL_ID_SEGMENT) {
+    await setServerValue(gladys, client, appToken, feature, endpointId, value);
+    return;
+  }
+
   const writer = writeValues[feature.category] && writeValues[feature.category][feature.type];
   const transformedValue = writer ? writer(value) : value;
 
@@ -566,6 +607,47 @@ export async function setDeviceValue(gladys, client, appToken, rawDevice, featur
       `PUT /home/endpoints/${nodeId}/${endpointIdToDevice} ${JSON.stringify({ value: valueToDevice })}`,
   );
   await client.setEndpointValue(appToken, nodeId, endpointIdToDevice, valueToDevice);
+}
+
+/**
+ * Apply a command on the Freebox Server: only the Wi-Fi switch is writable.
+ * The box answers with the configuration it applied, published at once so the
+ * dashboard does not wait for the next poll.
+ * @param {object} gladys - The Gladys SDK instance.
+ * @param {import('./freebox/FreeboxClient.js').FreeboxClient} client - Freebox client.
+ * @param {string} appToken - The stored app token.
+ * @param {object} feature - The server feature.
+ * @param {string} key - The feature key (third segment of its external id).
+ * @param {number} value - The new value.
+ * @returns {Promise<void>} Resolves when applied.
+ * @example
+ * await setServerValue(gladys, client, appToken, feature, 'wifi', 0);
+ */
+async function setServerValue(gladys, client, appToken, feature, key, value) {
+  if (key !== SERVER.WIFI_KEY) {
+    throw new Error(`Freebox Server: "${key}" is read-only`);
+  }
+  const enabled = Number(value) === 1;
+  logger.info(`Freebox set Wi-Fi = ${enabled ? 'on' : 'off'}`);
+  let applied;
+  try {
+    applied = await client.setWifiEnabled(appToken, enabled);
+  } catch (e) {
+    if (e.code === 'insufficient_rights') {
+      throw new Error(
+        'Freebox refused to switch the Wi-Fi: tick the "Freebox settings modification" ' +
+          'permission of Gladys Assistant in Freebox OS',
+        { cause: e },
+      );
+    }
+    throw e;
+  }
+  const state = typeof applied.enabled === 'boolean' ? applied.enabled : enabled;
+  await gladys
+    .publishChangedStates([
+      { device_feature_external_id: feature.external_id, state: state ? 1 : 0 },
+    ])
+    .catch((e) => logger.debug(`Freebox: unable to publish the Wi-Fi state: ${e.message}`));
 }
 
 /**

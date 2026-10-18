@@ -7,6 +7,7 @@ import {
   convertPlayer,
   getPlayerBaseUrl,
   readConnection,
+  readServerExtras,
 } from '../src/freebox/convert.js';
 import { normalizeCameraUrl } from '../src/freebox/camera.js';
 
@@ -342,9 +343,60 @@ test('buildServerDevice publishes the connection state and the two rates', () =>
         'rate',
         'megabits-per-second',
       ],
+      ['freebox:server:wifi', 'freebox-server-wifi', 'switch', 'binary', undefined],
     ],
   );
-  device.features.forEach((feature) => assert.equal(feature.read_only, true));
+  device.features
+    .filter((feature) => feature.external_id !== 'freebox:server:wifi')
+    .forEach((feature) => assert.equal(feature.read_only, true));
+  const wifi = device.features.find((feature) => feature.external_id === 'freebox:server:wifi');
+  assert.equal(wifi.read_only, false);
+  assert.equal(wifi.has_feedback, true);
+});
+
+test('buildServerDevice adds one temperature per sensor the box lists', () => {
+  const device = buildServerDevice({
+    sensors: [
+      { id: 'temp_cpum', name: 'Température CPU M', value: 60 },
+      { id: 'temp_hdd0', name: 'Disque dur 1', value: 41 },
+    ],
+  });
+  const temperatures = device.features.filter(
+    (feature) => feature.category === 'device-temperature-sensor',
+  );
+  assert.deepEqual(
+    temperatures.map((f) => [f.external_id, f.selector, f.type, f.unit, f.min, f.max, f.name]),
+    [
+      [
+        'freebox:server:temp-temp_cpum',
+        'freebox-server-temp-temp-cpum',
+        'decimal',
+        'celsius',
+        -100,
+        150,
+        'Température CPU M',
+      ],
+      [
+        'freebox:server:temp-temp_hdd0',
+        'freebox-server-temp-temp-hdd0',
+        'decimal',
+        'celsius',
+        -100,
+        150,
+        'Disque dur 1',
+      ],
+    ],
+  );
+});
+
+test('readServerExtras reads the Wi-Fi switch and the temperatures', () => {
+  assert.deepEqual(
+    readServerExtras({ sensors: [{ id: 'temp_sw', value: 48 }] }, { enabled: false }),
+    { wifi: 0, 'temp-temp_sw': 48 },
+  );
+  assert.deepEqual(readServerExtras(null, { enabled: true }), { wifi: 1 });
+  // An unreadable Wi-Fi state is left out, never published as "off".
+  assert.deepEqual(readServerExtras(null, null), {});
 });
 
 test('readConnection keeps the Freebox state and converts the rates to Mbit/s', () => {

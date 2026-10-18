@@ -6,7 +6,10 @@
 //   1. instantiates the SDK (connection, auth, reconnection handled for you);
 //   2. registers the event handlers BEFORE connect();
 //   3. exposes the manifest actions (pair / test / reboot / unpair);
-//   4. publishes the discovered devices once connected and paired.
+//   4. publishes the discovered devices once connected and paired;
+//   5. serves the dashboard widgets (box, calls, network), fires the scene
+//      triggers (phone call, network device presence) from the watch loop
+//      (src/watcher.js) and runs the Wake-on-LAN scene action.
 //
 // Pairing model: the Freebox app token is obtained through the "Pair with the
 // Freebox" manifest action (the user confirms on the box LCD screen), then
@@ -16,7 +19,8 @@
 
 import { GladysIntegration, logger } from '@gladysassistant/integration-sdk';
 import { FreeboxClient } from './src/freebox/FreeboxClient.js';
-import { APP_TOKEN_CONFIG_KEY } from './src/freebox/constants.js';
+import { APP_TOKEN_CONFIG_KEY, SERVER } from './src/freebox/constants.js';
+import { readSystem, readNetHistory } from './src/freebox/read.js';
 import {
   buildDiscoveredDevices,
   pollDevice,
@@ -25,8 +29,23 @@ import {
   getDeviceImage,
   startCameraPush,
 } from './src/devices.js';
-import { forLog } from './src/externalId.js';
+import { forLog, toExternalId } from './src/externalId.js';
 import { MESSAGES } from './src/messages.js';
+import { createWatcher } from './src/watcher.js';
+import {
+  WIDGETS,
+  WIDGET_ACTIONS,
+  PERIODS,
+  messageContent,
+  readBoxSettings,
+  readCallsSettings,
+  readNetworkSettings,
+  buildBoxWidget,
+  buildCallsWidget,
+  buildNetworkWidget,
+} from './src/widgets.js';
+import { SCENE_ACTIONS, callEvent, presenceEvent, wakeOnLanMac } from './src/events.js';
+import { t, all } from './src/i18n.js';
 
 const gladys = new GladysIntegration();
 const client = new FreeboxClient();
@@ -41,6 +60,65 @@ let stopCameraPush = null;
 async function getAppToken() {
   const config = await gladys.getConfig();
   return (config && config[APP_TOKEN_CONFIG_KEY]) || null;
+}
+
+/**
+ * Fire a scene trigger, logging a refusal instead of failing the round.
+ * @param {{ key: string, data: object }} event - The event.
+ * @returns {Promise<void>} Resolves once sent (or refused).
+ */
+async function fire({ key, data }) {
+  try {
+    await gladys.publishSceneEvent(key, data);
+  } catch (e) {
+    logger.warn(`Freebox: scene event "${key}" refused: ${e.message}`);
+  }
+}
+
+// The LAN hosts and the call log, read twice a minute: scene triggers on what
+// changed, a widget refresh when what a widget shows moved.
+const watcher = createWatcher({
+  client,
+  getAppToken,
+  logger,
+  onRound: async ({ presence, calls, hostsChanged, callsChanged }) => {
+    for (const call of calls) {
+      logger.info(`Freebox: new ${call.type} call in the log`);
+      await fire(callEvent(call));
+    }
+    for (const change of presence) {
+      logger.debug(`Freebox: "${change.host.name}" ${change.event}`);
+      await fire(presenceEvent(change));
+    }
+    if (hostsChanged) {
+      gladys.requestWidgetRefresh(WIDGETS.NETWORK);
+    }
+    if (callsChanged) {
+      gladys.requestWidgetRefresh(WIDGETS.CALLS);
+    }
+  },
+});
+
+/**
+ * Publish the Wi-Fi state on the Freebox Server device right after a switch
+ * from a widget, when that device exists in Gladys.
+ * @param {boolean} enabled - The state the box applied.
+ * @returns {Promise<void>} Resolves once published (or skipped).
+ */
+async function publishWifiState(enabled) {
+  const externalId = toExternalId(
+    gladys,
+    `freebox:${SERVER.EXTERNAL_ID_SEGMENT}:${SERVER.WIFI_KEY}`,
+  );
+  const exists = (gladys.devices || []).some((device) =>
+    (device.features || []).some((feature) => feature.external_id === externalId),
+  );
+  if (!exists) {
+    return;
+  }
+  await gladys
+    .publishChangedStates([{ device_feature_external_id: externalId, state: enabled ? 1 : 0 }])
+    .catch((e) => logger.debug(`Freebox: unable to publish the Wi-Fi state: ${e.message}`));
 }
 
 /**
@@ -207,8 +285,133 @@ gladys.onAction('unpair', async () => {
   logger.info('Action unpair -> removing the stored app token');
   await gladys.setConfig({ [APP_TOKEN_CONFIG_KEY]: '' });
   client.reset();
+  watcher.reset();
   await gladys.setConnectionStatus(false).catch(() => {});
   return MESSAGES.unpaired;
+});
+
+// --- Dashboard widget: the box at a glance -----------------------------------
+gladys.onWidgetGet(WIDGETS.BOX, async ({ settings, language }) => {
+  const appToken = await getAppToken();
+  if (!appToken) {
+    return messageContent(t('notPaired', language));
+  }
+  let connection;
+  try {
+    connection = await client.loadConnectionStatus(appToken);
+  } catch (e) {
+    return messageContent(t('boxUnreachable', language, { reason: e.message }), 30);
+  }
+  // Everything else is optional: the card shows what the box answered.
+  const optional = (promise, what) =>
+    promise.catch((e) => {
+      logger.debug(`Freebox box widget: ${what} unreadable: ${e.message}`);
+      return null;
+    });
+  const { period } = readBoxSettings(settings);
+  const [system, wifi, history] = await Promise.all([
+    optional(client.loadSystem(appToken), 'system state'),
+    optional(client.loadWifiConfig(appToken), 'Wi-Fi state'),
+    optional(
+      client.loadNetHistory(appToken, Math.floor(Date.now() / 1000) - PERIODS[period]),
+      'rate history',
+    ),
+  ]);
+  const { hosts } = watcher.snapshot();
+  return buildBoxWidget({
+    connection,
+    system: system && readSystem(system),
+    wifi,
+    devices: hosts ? hosts.filter((host) => host.active).length : null,
+    history: history && readNetHistory(history),
+    language,
+  });
+});
+
+gladys.onWidgetAction(WIDGETS.BOX, async (actionKey) => {
+  const appToken = await getAppToken();
+  if (!appToken) {
+    return all('notPaired');
+  }
+  try {
+    if (actionKey === WIDGET_ACTIONS.REBOOT) {
+      logger.info('Widget -> rebooting the Freebox');
+      await client.reboot(appToken);
+      return MESSAGES.rebootRequested;
+    }
+    if (actionKey === WIDGET_ACTIONS.WIFI_ON || actionKey === WIDGET_ACTIONS.WIFI_OFF) {
+      const wanted = actionKey === WIDGET_ACTIONS.WIFI_ON;
+      logger.info(`Widget -> Wi-Fi ${wanted ? 'on' : 'off'}`);
+      const applied = await client.setWifiEnabled(appToken, wanted);
+      const enabled = typeof applied.enabled === 'boolean' ? applied.enabled : wanted;
+      await publishWifiState(enabled);
+      return all(enabled ? 'wifiSwitchedOn' : 'wifiSwitchedOff');
+    }
+  } catch (e) {
+    logger.warn(`Freebox widget action "${actionKey}" failed: ${e.message}`);
+    if (e.code === 'insufficient_rights') {
+      return all('settingsPermission');
+    }
+    return all('actionFailed', { reason: e.message });
+  }
+  throw new Error(`Unknown action "${actionKey}" of the box widget`);
+});
+
+// --- Dashboard widget: the call log ------------------------------------------
+gladys.onWidgetGet(WIDGETS.CALLS, async ({ settings, language }) => {
+  if (!(await getAppToken())) {
+    return messageContent(t('notPaired', language));
+  }
+  const { calls, callsError } = watcher.snapshot();
+  return buildCallsWidget({
+    calls,
+    error: callsError,
+    language,
+    show: readCallsSettings(settings).show,
+  });
+});
+
+gladys.onWidgetAction(WIDGETS.CALLS, async (actionKey) => {
+  if (actionKey !== WIDGET_ACTIONS.MARK_CALLS_READ) {
+    throw new Error(`Unknown action "${actionKey}" of the calls widget`);
+  }
+  const appToken = await getAppToken();
+  if (!appToken) {
+    return all('notPaired');
+  }
+  try {
+    await client.markCallsAsRead(appToken);
+  } catch (e) {
+    return all('actionFailed', { reason: e.message });
+  }
+  // The core refetches the content right after this answer: read the log
+  // again first, or the card would still show the calls as unread.
+  await watcher.runNow();
+  return all('callsMarkedRead');
+});
+
+// --- Dashboard widget: the devices of the network ----------------------------
+gladys.onWidgetGet(WIDGETS.NETWORK, async ({ settings, language }) => {
+  if (!(await getAppToken())) {
+    return messageContent(t('notPaired', language));
+  }
+  return buildNetworkWidget({
+    hosts: watcher.snapshot().hosts,
+    language,
+    show: readNetworkSettings(settings).show,
+  });
+});
+
+// --- Scene action: wake a computer of the network ----------------------------
+gladys.onSceneAction(SCENE_ACTIONS.WAKE_ON_LAN, async (fields) => {
+  const mac = wakeOnLanMac(fields);
+  const appToken = await getAppToken();
+  if (!appToken) {
+    throw new Error('Freebox is not paired');
+  }
+  const host = (watcher.snapshot().hosts || []).find((entry) => entry.mac === mac);
+  logger.info(`Scene -> Wake-on-LAN ${mac}`);
+  await client.wakeOnLan(appToken, mac, host ? host.interface : undefined);
 });
 
 // --- Configuration updated by the user ---------------------------------------
@@ -234,6 +437,7 @@ gladys.on('connected', async () => {
     // (Re)start the periodic camera-image push loop.
     stopCameraPushIfRunning();
     stopCameraPush = startCameraPush(gladys);
+    watcher.start();
   } catch (err) {
     logger.error('Post-connection initialization failed', err);
     await gladys.setConnectionStatus(false, MESSAGES.initFailed).catch(() => {});
@@ -242,12 +446,14 @@ gladys.on('connected', async () => {
 
 gladys.on('disconnected', () => {
   stopCameraPushIfRunning();
+  watcher.stop();
 });
 
 // --- Graceful shutdown -------------------------------------------------------
 gladys.handleShutdown((signal) => {
   logger.info(`Received ${signal} -> graceful shutdown`);
   stopCameraPushIfRunning();
+  watcher.stop();
   client.reset();
 });
 
