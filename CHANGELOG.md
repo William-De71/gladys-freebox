@@ -5,6 +5,12 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions
 follow [Semantic Versioning](https://semver.org/). This file is generated at
 each release from the Conventional Commits: do not edit it by hand.
 
+## [1.4.0] - 2026-10-18
+
+### Added
+
+- add dashboard widgets, phone call and network presence scene triggers, Wake-on-LAN, and the Wi-Fi switch and temperatures of the Freebox Server ([14cfa0a](https://github.com/William-De71/gladys-freebox/commit/14cfa0afc33b7c0bd62278443572c3539525058f))
+
 ## [1.3.0] - 2026-10-13
 
 ### Added
@@ -85,4 +91,5 @@ each release from the Conventional Commits: do not edit it by hand.
 
 ## 1.0.0 (2026-07-24)
 
+[1.4.0]: https://github.com/William-De71/gladys-freebox/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/William-De71/gladys-freebox/compare/v1.2.0...v1.3.0
