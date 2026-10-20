@@ -5,6 +5,12 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions
 follow [Semantic Versioning](https://semver.org/). This file is generated at
 each release from the Conventional Commits: do not edit it by hand.
 
+## [1.5.0] - 2026-10-20
+
+### Added
+
+- page through the network devices and look back in time on the traffic chart ([09e6dc6](https://github.com/William-De71/gladys-freebox/commit/09e6dc63155b335537e4a6cb4122298363ef6e9f))
+
 ## [1.4.0] - 2026-10-18
 
 ### Added
@@ -91,5 +97,6 @@ each release from the Conventional Commits: do not edit it by hand.
 
 ## 1.0.0 (2026-07-24)
 
+[1.5.0]: https://github.com/William-De71/gladys-freebox/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/William-De71/gladys-freebox/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/William-De71/gladys-freebox/compare/v1.2.0...v1.3.0
