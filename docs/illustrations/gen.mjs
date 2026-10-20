@@ -86,6 +86,8 @@ const hosts = readHosts([
   host('24:0a:c4:10:20:30', 'Chaudière ESP32', '192.168.1.62', 'wifi', '2d4g'),
   host('dc:a6:32:00:00:01', 'Imprimante', '192.168.1.70', 'wifi', '2d4g'),
   host('44:65:0d:ab:cd:ef', 'Echo Dot', '192.168.1.88', 'wifi', '2d4g'),
+  host('3c:22:fb:12:ab:34', 'iPad', '192.168.1.41', 'wifi', '5g'),
+  host('a8:5e:45:98:76:54', 'PC du bureau', '192.168.1.12', 'ethernet'),
   host('9c:b6:d0:11:22:33', 'iPhone de Tom', '192.168.1.27', 'wifi', '5g', false, 95),
 ]);
 

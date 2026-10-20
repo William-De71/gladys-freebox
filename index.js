@@ -40,15 +40,21 @@ import {
   readBoxSettings,
   readCallsSettings,
   readNetworkSettings,
+  readHistoryOffset,
+  readListPage,
   buildBoxWidget,
   buildCallsWidget,
   buildNetworkWidget,
 } from './src/widgets.js';
+import { createViewStore } from './src/widgetViews.js';
 import { SCENE_ACTIONS, callEvent, presenceEvent, wakeOnLanMac } from './src/events.js';
 import { t, all } from './src/i18n.js';
 
 const gladys = new GladysIntegration();
 const client = new FreeboxClient();
+
+// How far back the box chart looks, which page the network list shows.
+const views = createViewStore();
 
 // Cleanup function of the periodic camera-image push loop.
 let stopCameraPush = null;
@@ -308,12 +314,17 @@ gladys.onWidgetGet(WIDGETS.BOX, async ({ settings, language }) => {
       logger.debug(`Freebox box widget: ${what} unreadable: ${e.message}`);
       return null;
     });
-  const { period } = readBoxSettings(settings);
+  const boxSettings = readBoxSettings(settings);
+  const { period } = boxSettings;
+  const offset = views.get(WIDGETS.BOX, boxSettings, 0);
+  // Looking back, the chart is the window `offset` periods before now; live,
+  // it ends now (no date_end: the box answers up to its last point).
+  const end = Math.floor(Date.now() / 1000) - offset * PERIODS[period];
   const [system, wifi, history] = await Promise.all([
     optional(client.loadSystem(appToken), 'system state'),
     optional(client.loadWifiConfig(appToken), 'Wi-Fi state'),
     optional(
-      client.loadNetHistory(appToken, Math.floor(Date.now() / 1000) - PERIODS[period]),
+      client.loadNetHistory(appToken, end - PERIODS[period], offset > 0 ? end : undefined),
       'rate history',
     ),
   ]);
@@ -325,10 +336,22 @@ gladys.onWidgetGet(WIDGETS.BOX, async ({ settings, language }) => {
     devices: hosts ? hosts.filter((host) => host.active).length : null,
     history: history && readNetHistory(history),
     language,
+    period,
+    offset,
   });
 });
 
-gladys.onWidgetAction(WIDGETS.BOX, async (actionKey) => {
+gladys.onWidgetAction(WIDGETS.BOX, async (actionKey, params, { settings }) => {
+  if (actionKey === WIDGET_ACTIONS.HISTORY_EARLIER || actionKey === WIDGET_ACTIONS.HISTORY_LATER) {
+    // No toast: the core refetches the card right after, the chart moved.
+    const boxSettings = readBoxSettings(settings);
+    const offset = readHistoryOffset(params, boxSettings.period);
+    if (offset === null) {
+      throw new Error(`Invalid offset of the box widget action "${actionKey}"`);
+    }
+    views.set(WIDGETS.BOX, boxSettings, offset);
+    return undefined;
+  }
   const appToken = await getAppToken();
   if (!appToken) {
     return all('notPaired');
@@ -395,11 +418,26 @@ gladys.onWidgetGet(WIDGETS.NETWORK, async ({ settings, language }) => {
   if (!(await getAppToken())) {
     return messageContent(t('notPaired', language));
   }
+  const networkSettings = readNetworkSettings(settings);
   return buildNetworkWidget({
     hosts: watcher.snapshot().hosts,
     language,
-    show: readNetworkSettings(settings).show,
+    show: networkSettings.show,
+    page: views.get(WIDGETS.NETWORK, networkSettings, 1),
   });
+});
+
+gladys.onWidgetAction(WIDGETS.NETWORK, async (actionKey, params, { settings }) => {
+  if (actionKey !== WIDGET_ACTIONS.PAGE_PREVIOUS && actionKey !== WIDGET_ACTIONS.PAGE_NEXT) {
+    throw new Error(`Unknown action "${actionKey}" of the network widget`);
+  }
+  const page = readListPage(params);
+  if (page === null) {
+    throw new Error(`Invalid page of the network widget action "${actionKey}"`);
+  }
+  // No toast: the core refetches the card right after, on the new page.
+  views.set(WIDGETS.NETWORK, readNetworkSettings(settings), page);
+  return undefined;
 });
 
 // --- Scene action: wake a computer of the network ----------------------------

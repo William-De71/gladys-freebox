@@ -594,13 +594,17 @@ export class FreeboxClient {
    * it, which is tried when the POST is refused.
    * @param {string} appToken - The stored app token.
    * @param {number} dateStart - Start of the period, in seconds since the epoch.
+   * @param {number} [dateEnd] - End of the period, in seconds; now when absent.
    * @returns {Promise<Array<object>>} Points `{ time, rate_down, rate_up }`.
    * @see https://dev.freebox.fr/sdk/os/rrd/
    * @example
    * const points = await client.loadNetHistory(appToken, Math.floor(Date.now() / 1000) - 86400);
    */
-  async loadNetHistory(appToken, dateStart) {
+  async loadNetHistory(appToken, dateStart, dateEnd) {
     const query = { db: 'net', fields: ['rate_down', 'rate_up'], date_start: dateStart };
+    if (dateEnd !== undefined) {
+      query.date_end = dateEnd;
+    }
     let result;
     try {
       result = await this.resultOf(

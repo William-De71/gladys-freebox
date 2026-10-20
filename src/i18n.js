@@ -35,7 +35,7 @@ export const TEXTS = {
     de: 'Upload',
     es: 'Subida',
   },
-  tileTemperature: {
+  rowTemperature: {
     en: 'Temperature',
     fr: 'Température',
     de: 'Temperatur',
@@ -46,6 +46,49 @@ export const TEXTS = {
     fr: 'Trafic internet',
     de: 'Internetverkehr',
     es: 'Tráfico de internet',
+  },
+  // The chart looking back in time: "{ago}" is one of the ago* texts below.
+  chartTrafficAgo: {
+    en: 'Internet traffic · {ago} ago',
+    fr: 'Trafic internet · il y a {ago}',
+    de: 'Internetverkehr · vor {ago}',
+    es: 'Tráfico de internet · hace {ago}',
+  },
+  agoHour: {
+    en: '{count} h',
+    fr: '{count} h',
+    de: '{count} Std.',
+    es: '{count} h',
+  },
+  agoDay: {
+    en: '{count} d',
+    fr: '{count} j',
+    de: '{count} T.',
+    es: '{count} d',
+  },
+  agoWeek: {
+    en: '{count} wk',
+    fr: '{count} sem.',
+    de: '{count} Wo.',
+    es: '{count} sem.',
+  },
+  historyEmpty: {
+    en: 'The Freebox keeps no traffic history that far back.',
+    fr: "La Freebox ne garde pas d'historique du trafic aussi ancien.",
+    de: 'So weit zurück speichert die Freebox keinen Verkehrsverlauf.',
+    es: 'La Freebox no guarda un historial de tráfico tan antiguo.',
+  },
+  buttonEarlier: {
+    en: 'Earlier',
+    fr: 'Plus tôt',
+    de: 'Früher',
+    es: 'Antes',
+  },
+  buttonLater: {
+    en: 'Later',
+    fr: 'Plus tard',
+    de: 'Später',
+    es: 'Después',
   },
   seriesDownload: {
     en: 'Download',
@@ -304,11 +347,23 @@ export const TEXTS = {
     de: '{active} von {total} bekannten Geräten verbunden',
     es: '{active} de {total} dispositivos conocidos conectados',
   },
-  networkMore: {
-    en: '… and {count} more',
-    fr: '… et {count} de plus',
-    de: '… und {count} weitere',
-    es: '… y {count} más',
+  networkPage: {
+    en: 'Page {page} of {pages} · devices {from} to {to} of {count}',
+    fr: 'Page {page} sur {pages} · appareils {from} à {to} sur {count}',
+    de: 'Seite {page} von {pages} · Geräte {from} bis {to} von {count}',
+    es: 'Página {page} de {pages} · dispositivos {from} a {to} de {count}',
+  },
+  buttonPrevious: {
+    en: 'Previous',
+    fr: 'Précédent',
+    de: 'Zurück',
+    es: 'Anterior',
+  },
+  buttonNext: {
+    en: 'Next',
+    fr: 'Suivant',
+    de: 'Weiter',
+    es: 'Siguiente',
   },
   networkEmpty: {
     en: 'No device to show.',
@@ -382,7 +437,7 @@ export const TEXTS = {
  * @param {object} [params] - Values of the `{name}` placeholders.
  * @returns {string} The text.
  * @example
- * t('networkMore', 'fr', { count: 3 }); // '… et 3 de plus'
+ * t('buttonNext', 'fr'); // 'Suivant'
  */
 export function t(key, language, params = {}) {
   const entry = TEXTS[key];

@@ -45,6 +45,7 @@ src/watcher.js               30 s loop: LAN hosts and call log snapshots
 src/tracker.js               snapshots -> trigger transitions (pure logic)
 src/events.js                scene trigger payloads, Wake-on-LAN fields
 src/widgets.js               box, calls and network widget contents (pure)
+src/widgetViews.js           chart offset and list page per widget settings
 src/freebox/FreeboxClient.js discovery, pairing, shared session, requests
 src/freebox/httpClient.js    native HTTPS client, verified against Free's CAs
 src/freebox/constants.js     app identity, endpoints, Free's root CAs

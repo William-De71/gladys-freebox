@@ -102,7 +102,8 @@ mock.module('../src/freebox/FreeboxClient.js', {
       async reboot() {
         box.requests.push(['reboot']);
       }
-      async loadNetHistory() {
+      async loadNetHistory(_appToken, dateStart, dateEnd) {
+        box.requests.push(['rrd', dateStart, dateEnd]);
         return netHistory(240);
       }
       async loadLanHosts() {
@@ -244,7 +245,7 @@ test('the box widget shows the rates, the history and the buttons', async () => 
   const { components } = ack.data.content;
   assert.deepEqual(
     components.map((c) => c.type),
-    ['text', 'value', 'value', 'value', 'chart', 'status', 'button', 'button'],
+    ['text', 'value', 'value', 'chart', 'status', 'button', 'button', 'button'],
   );
   const devices = components
     .find((c) => c.type === 'status')
@@ -272,6 +273,30 @@ test('the box widget buttons switch the Wi-Fi and reboot, with a toast', async (
   ack = await gladys.fake.widgetAction('box', 'reboot');
   assert.deepEqual(box.requests.at(-1), ['reboot']);
   assert.match(JSON.stringify(ack.data.message), /Reboot requested/);
+});
+
+test('the box widget goes back in time and forward again, per settings', async () => {
+  const settings = { period: 'day' };
+  const now = () => Math.floor(Date.now() / 1000);
+  let ack = await gladys.fake.widgetAction('box', 'history_earlier', { offset: 2 }, { settings });
+  assert.equal(ack.success, true);
+  ack = await gladys.fake.widgetGet('box', { language: 'en', settings });
+  const [, start, end] = box.requests.at(-1);
+  assert.ok(Math.abs(end - (now() - 2 * 86400)) <= 2, 'the window ends two days ago');
+  assert.equal(end - start, 86400);
+  const chart = ack.data.content.components.find((c) => c.type === 'chart');
+  assert.equal(chart.title, 'Internet traffic · 2 d ago');
+
+  // Another period setting is another view: still live.
+  await gladys.fake.widgetGet('box', { language: 'en', settings: { period: 'week' } });
+  assert.equal(box.requests.at(-1)[2], undefined);
+
+  await gladys.fake.widgetAction('box', 'history_later', { offset: 0 }, { settings });
+  await gladys.fake.widgetGet('box', { language: 'en', settings });
+  assert.equal(box.requests.at(-1)[2], undefined, 'live again: no end date');
+
+  ack = await gladys.fake.widgetAction('box', 'history_earlier', { offset: 'x' }, { settings });
+  assert.equal(ack.success, false);
 });
 
 test('the network widget lists the devices connected now', async () => {
@@ -336,5 +361,21 @@ test('the Wake-on-LAN scene action wakes the host on its interface', async () =>
   assert.deepEqual(box.requests.at(-1), ['wol', '3C:22:FB:11:22:33', 'pub']);
 
   ack = await gladys.fake.sceneAction('wake_on_lan', { mac: 'my computer' });
+  assert.equal(ack.success, false);
+});
+
+test('the network widget buttons move the page, other actions are refused', async () => {
+  const settings = { show: 'all' };
+  let ack = await gladys.fake.widgetAction('network', 'page_next', { page: 2 }, { settings });
+  assert.equal(ack.success, true);
+  assert.equal(ack.data?.message, undefined, 'no toast');
+  // The sample network holds one page: the card stays on it.
+  ack = await gladys.fake.widgetGet('network', { settings });
+  const list = ack.data.content.components.find((c) => c.type === 'card-list');
+  assert.equal(list.items.length, SAMPLE_HOSTS.length);
+
+  ack = await gladys.fake.widgetAction('network', 'page_next', { page: 'two' }, { settings });
+  assert.equal(ack.success, false);
+  ack = await gladys.fake.widgetAction('network', 'reboot', {}, { settings });
   assert.equal(ack.success, false);
 });

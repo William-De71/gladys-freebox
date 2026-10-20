@@ -180,16 +180,20 @@ leído justo antes.
 
 ![Los tres widgets Freebox: la box con sus velocidades y su historial de tráfico, el registro de llamadas y los dispositivos de la red (ilustración generada, no una captura de pantalla)](docs/assets/widgets.es.png)
 
-| Widget (clave)                  | Contenido                                                                                                                                  | Ajuste                                   | Botones                                                  |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------- | -------------------------------------------------------- |
-| Freebox (`box`)                 | velocidades, temperatura más alta, gráfico de tráfico (RRD), conexión a internet, IPv4 pública, Wi-Fi, dispositivos conectados, ventilador | `period`: hora, día, semana              | Apagar / Encender el Wi-Fi, Reiniciar (con confirmación) |
-| Llamadas telefónicas (`calls`)  | las 8 últimas llamadas, tipo y fecha; número y duración en el panel de detalle                                                             | `show`: todas, perdidas                  | Marcar como leídas (si hay llamadas sin leer)            |
-| Dispositivos de red (`network`) | número de conectados (Wi-Fi, Ethernet), hasta 8 dispositivos con direcciones IP y MAC; fabricante en el panel de detalle                   | `show`: conectados, desconectados, todos | —                                                        |
+| Widget (clave)                  | Contenido                                                                                                                                  | Ajuste                                   | Botones                                                                                                     |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Freebox (`box`)                 | velocidades, gráfico de tráfico (RRD), conexión a internet, IPv4 pública, Wi-Fi, dispositivos conectados, temperatura más alta, ventilador | `period`: hora, día, semana              | Antes / Después (gráfico), Apagar / Encender el Wi-Fi, Reiniciar (con confirmación; ocultos al mirar atrás) |
+| Llamadas telefónicas (`calls`)  | las 8 últimas llamadas, tipo y fecha; número y duración en el panel de detalle                                                             | `show`: todas, perdidas                  | Marcar como leídas (si hay llamadas sin leer)                                                               |
+| Dispositivos de red (`network`) | número de conectados (Wi-Fi, Ethernet), 8 dispositivos por página con direcciones IP y MAC; fabricante en el panel de detalle              | `show`: conectados, desconectados, todos | Anterior / Siguiente (más de 8 dispositivos)                                                                |
 
 Las imágenes se generan a partir del código real de los widgets (`docs/illustrations/render.sh`), no son capturas de
 pantalla. La tarjeta **Freebox** lee la box al mostrarse (caché de 30 segundos); las otras dos leen el estado del
 bucle de vigilancia y no cuestan ninguna petición a la box. El registro de llamadas necesita el permiso **acceso al
 registro de llamadas**: sin él, la tarjeta explica cómo concederlo.
+
+Los botones de navegación (gráfico en el pasado, página de la lista) guardan su posición en memoria por widget y
+ajustes: Gladys guarda un contenido por widget y ajustes, así que dos paneles que muestran el mismo widget con los mismos
+ajustes se mueven juntos. Sin tocarlo durante 5 minutos, la tarjeta vuelve al gráfico en directo y a la primera página.
 
 ## Escenas
 

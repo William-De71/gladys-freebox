@@ -181,16 +181,21 @@ schaltet den unmittelbar zuvor gelesenen tatsächlichen Zustand um.
 
 ![Die drei Freebox-Widgets: die Box mit Datenraten und Verkehrsverlauf, das Anrufprotokoll und die Netzwerkgeräte (generierte Illustration, kein Screenshot)](docs/assets/widgets.de.png)
 
-| Widget (Schlüssel)         | Inhalt                                                                                                                        | Einstellung                       | Schaltflächen                                   |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------- | ----------------------------------------------- |
-| Freebox (`box`)            | Datenraten, höchste Temperatur, Verkehrsdiagramm (RRD), Internetverbindung, öffentliche IPv4, WLAN, verbundene Geräte, Lüfter | `period`: Stunde, Tag, Woche      | WLAN aus / ein, Neu starten (mit Bestätigung)   |
-| Telefonanrufe (`calls`)    | die letzten 8 Anrufe mit Typ und Datum; Nummer und Dauer im Detailfenster                                                     | `show`: alle, verpasste           | Als gelesen markieren (bei ungelesenen Anrufen) |
-| Netzwerkgeräte (`network`) | Anzahl verbundener Geräte (WLAN, Ethernet), bis zu 8 Geräte mit IP- und MAC-Adresse; Hersteller im Detailfenster              | `show`: verbunden, getrennt, alle | —                                               |
+| Widget (Schlüssel)         | Inhalt                                                                                                                        | Einstellung                       | Schaltflächen                                                                                               |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Freebox (`box`)            | Datenraten, Verkehrsdiagramm (RRD), Internetverbindung, öffentliche IPv4, WLAN, verbundene Geräte, höchste Temperatur, Lüfter | `period`: Stunde, Tag, Woche      | Früher / Später (Diagramm), WLAN aus / ein, Neu starten (mit Bestätigung; beim Zurückblättern ausgeblendet) |
+| Telefonanrufe (`calls`)    | die letzten 8 Anrufe mit Typ und Datum; Nummer und Dauer im Detailfenster                                                     | `show`: alle, verpasste           | Als gelesen markieren (bei ungelesenen Anrufen)                                                             |
+| Netzwerkgeräte (`network`) | Anzahl verbundener Geräte (WLAN, Ethernet), 8 Geräte pro Seite mit IP- und MAC-Adresse; Hersteller im Detailfenster           | `show`: verbunden, getrennt, alle | Zurück / Weiter (ab 9 Geräten)                                                                              |
 
 Die Bilder werden aus dem echten Widget-Code erzeugt (`docs/illustrations/render.sh`), es sind keine Screenshots. Die
 Karte **Freebox** liest die Box beim Anzeigen (30 Sekunden Cache); die beiden anderen lesen den Stand der
 Überwachungsschleife und kosten daher keine Anfrage an die Box. Das Anrufprotokoll braucht die Berechtigung **Zugriff
 auf das Anrufprotokoll**: Ohne sie erklärt die Karte, wie man sie erteilt.
+
+Die Navigationsschaltflächen (Diagramm in der Vergangenheit, Seite der Liste) merken sich ihre Position pro Widget und
+Einstellungen: Gladys speichert einen Inhalt pro Widget und Einstellungen, zwei Dashboards mit demselben Widget und
+denselben Einstellungen bewegen sich also gemeinsam. Nach 5 Minuten ohne Tippen zeigt die Karte wieder das Live-Diagramm
+und die erste Seite.
 
 ## Szenen
 

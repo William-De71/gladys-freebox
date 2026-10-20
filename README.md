@@ -171,16 +171,20 @@ single `play_pause` command, and "Mute" toggles the real state read just before.
 
 ![The three Freebox widgets: the box with its rates and traffic history, the call log and the devices of the network (generated illustration, not a screenshot)](docs/assets/widgets.en.png)
 
-| Widget (key)                | Content                                                                                                      | Setting                              | Buttons                                      |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------ | -------------------------------------------- |
-| Freebox (`box`)             | rates, hottest temperature, RRD traffic chart, internet link, public IPv4, Wi-Fi, connected devices, fan     | `period`: hour, day, week            | Turn Wi-Fi off / on, Reboot (both confirmed) |
-| Phone calls (`calls`)       | the last 8 calls, type badge and date; number and duration in the detail panel                               | `show`: all, missed                  | Mark as read (when a call is unread)         |
-| Network devices (`network`) | connected count (Wi-Fi, Ethernet), up to 8 devices with IP and MAC address; manufacturer in the detail panel | `show`: connected, disconnected, all | —                                            |
+| Widget (key)                | Content                                                                                                         | Setting                              | Buttons                                                                                          |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| Freebox (`box`)             | rates, RRD traffic chart, internet link, public IPv4, Wi-Fi, connected devices, hottest temperature, fan        | `period`: hour, day, week            | Earlier / Later (chart), Turn Wi-Fi off / on, Reboot (both confirmed; hidden while looking back) |
+| Phone calls (`calls`)       | the last 8 calls, type badge and date; number and duration in the detail panel                                  | `show`: all, missed                  | Mark as read (when a call is unread)                                                             |
+| Network devices (`network`) | connected count (Wi-Fi, Ethernet), 8 devices per page with IP and MAC address; manufacturer in the detail panel | `show`: connected, disconnected, all | Previous / Next (past 8 devices)                                                                 |
 
 The images are generated from the real widget code (`docs/illustrations/render.sh`), not screenshots. The **Freebox**
 card reads the box when it is displayed (30-second cache); the two others read the snapshot of the watch loop, so they
 cost no request to the box. The call log needs the **call log access** permission: without it, the card says how to
 grant it.
+
+The navigation buttons (chart back in time, list page) keep their position in memory per widget and settings: Gladys
+caches one content per widget and settings, so two dashboards showing the same widget with the same settings move
+together. Left alone for 5 minutes, the card goes back to the live chart and to the first page.
 
 ## Scenes
 

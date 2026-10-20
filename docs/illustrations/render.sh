@@ -69,7 +69,7 @@ shot() {
 }
 
 for language in en fr de es; do
-  shot "$out/widgets.$language.png" 880,1500 "lang=$language&cards=box,calls,network"
+  shot "$out/widgets.$language.png" 880,1800 "lang=$language&cards=box,calls,network"
 done
 
 # 256 colors keep the small colored dots and values exact.

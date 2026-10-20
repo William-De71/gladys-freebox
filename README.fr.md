@@ -180,16 +180,21 @@ l'état réel lu juste avant.
 
 ![Les trois widgets Freebox : la box avec ses débits et l'historique du trafic, le journal d'appels et les appareils du réseau (illustration générée, pas une capture d'écran)](docs/assets/widgets.fr.png)
 
-| Widget (clé)                    | Contenu                                                                                                                                  | Réglage                               | Boutons                                                   |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- | --------------------------------------------------------- |
-| Freebox (`box`)                 | débits, température la plus haute, graphique du trafic (RRD), connexion internet, IPv4 publique, Wi-Fi, appareils connectés, ventilateur | `period` : heure, jour, semaine       | Couper / Activer le Wi-Fi, Redémarrer (avec confirmation) |
-| Appels téléphoniques (`calls`)  | les 8 derniers appels, badge du type et date ; numéro et durée dans le panneau de détail                                                 | `show` : tous, manqués                | Marquer comme lus (si un appel est non lu)                |
-| Appareils du réseau (`network`) | nombre de connectés (Wi-Fi, Ethernet), jusqu'à 8 appareils avec adresses IP et MAC ; fabricant dans le panneau de détail                 | `show` : connectés, déconnectés, tous | —                                                         |
+| Widget (clé)                    | Contenu                                                                                                                                  | Réglage                               | Boutons                                                                                                                     |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Freebox (`box`)                 | débits, graphique du trafic (RRD), connexion internet, IPv4 publique, Wi-Fi, appareils connectés, température la plus haute, ventilateur | `period` : heure, jour, semaine       | Plus tôt / Plus tard (graphique), Couper / Activer le Wi-Fi, Redémarrer (avec confirmation ; masqués en remontant le temps) |
+| Appels téléphoniques (`calls`)  | les 8 derniers appels, badge du type et date ; numéro et durée dans le panneau de détail                                                 | `show` : tous, manqués                | Marquer comme lus (si un appel est non lu)                                                                                  |
+| Appareils du réseau (`network`) | nombre de connectés (Wi-Fi, Ethernet), 8 appareils par page avec adresses IP et MAC ; fabricant dans le panneau de détail                | `show` : connectés, déconnectés, tous | Précédent / Suivant (au-delà de 8 appareils)                                                                                |
 
 Les images sont générées à partir du vrai code des widgets (`docs/illustrations/render.sh`), ce ne sont pas des
 captures d'écran. La carte **Freebox** lit la box à l'affichage (cache de 30 secondes) ; les deux autres lisent
 l'instantané de la boucle de surveillance et ne coûtent donc aucune requête à la box. Le journal d'appels demande la
 permission **accès au journal d'appels** : sans elle, la carte explique comment l'accorder.
+
+Les boutons de navigation (graphique dans le passé, page de la liste) gardent leur position en mémoire par widget et
+réglages : Gladys met en cache un contenu par widget et réglages, deux tableaux de bord affichant le même widget avec les
+mêmes réglages bougent donc ensemble. Sans appui pendant 5 minutes, la carte revient au graphique en direct et à la
+première page.
 
 ## Scènes
 

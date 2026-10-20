@@ -3,15 +3,17 @@
 //
 //   - `box`      the box at a glance: download and upload rates, temperature,
 //                traffic history kept by the box (RRD), internet link, public
-//                IPv4, Wi-Fi, connected devices, fan; buttons to switch the
-//                Wi-Fi and to reboot (both confirmed);
+//                IPv4, Wi-Fi, connected devices, fan; buttons to look back
+//                in the history, to switch the Wi-Fi and to reboot (both
+//                confirmed);
 //   - `calls`    the call log (missed, received, outgoing), with a button to
 //                mark the calls as read;
 //   - `network`  the devices connected to the box (or the ones gone), with
-//                their address, MAC address and connection.
+//                their address, MAC address and connection, page by page.
 //
 // The builders are pure: index.js reads the box (or the watcher snapshot) and
-// hands them plain objects. Content budget of a card: 8 components, 1 main
+// hands them plain objects, with the view (history offset, list page) the
+// buttons of the card moved to. Content budget of a card: 8 components, 1 main
 // one (chart or card-list), 6 tiles, 2 texts (1 body), 1 status, 4 buttons.
 // -----------------------------------------------------------------------------
 
@@ -24,11 +26,19 @@ export const WIDGET_ACTIONS = {
   WIFI_OFF: 'wifi_off',
   REBOOT: 'reboot',
   MARK_CALLS_READ: 'mark_calls_read',
+  HISTORY_EARLIER: 'history_earlier',
+  HISTORY_LATER: 'history_later',
+  PAGE_PREVIOUS: 'page_previous',
+  PAGE_NEXT: 'page_next',
 };
 
 // Chart periods of the `box` widget, in seconds.
 export const PERIODS = { hour: 3600, day: 86400, week: 604800 };
 const DEFAULT_PERIOD = 'day';
+// How many periods back the chart may go: a week of hours, a year of days or
+// weeks. The box may keep less: an empty window stops the way back sooner.
+const MAX_OFFSETS = { hour: 168, day: 365, week: 52 };
+const AGO_TEXTS = { hour: 'agoHour', day: 'agoDay', week: 'agoWeek' };
 const CALLS_SHOW = ['all', 'missed'];
 const NETWORK_SHOW = ['connected', 'disconnected', 'all'];
 const MAX_LIST_ITEMS = 8;
@@ -115,6 +125,37 @@ export const readBoxSettings = (settings = {}) => ({
 });
 
 /**
+ * A whole number between bounds out of an action parameter.
+ * @param {unknown} value - The raw parameter.
+ * @param {number} min - The lowest value.
+ * @param {number} max - The highest value.
+ * @returns {number|null} The number, null when not a whole number.
+ */
+function wholeNumber(value, min, max) {
+  return Number.isInteger(value) ? Math.min(max, Math.max(min, value)) : null;
+}
+
+/**
+ * The history offset a button of the `box` widget asks for, in periods back.
+ * @param {object} [params] - The action parameters.
+ * @param {string} period - hour, day or week.
+ * @returns {number|null} The offset, null when the parameter is invalid.
+ * @example
+ * readHistoryOffset({ offset: 2 }, 'day'); // 2
+ */
+export const readHistoryOffset = (params = {}, period = DEFAULT_PERIOD) =>
+  wholeNumber(params.offset, 0, MAX_OFFSETS[period] ?? 0);
+
+/**
+ * The page a button of the `network` widget asks for, from 1.
+ * @param {object} [params] - The action parameters.
+ * @returns {number|null} The page, null when the parameter is invalid.
+ * @example
+ * readListPage({ page: 2 }); // 2
+ */
+export const readListPage = (params = {}) => wholeNumber(params.page, 1, 1000);
+
+/**
  * The `box` widget.
  * @param {object} options - Options.
  * @param {object} options.connection - The `result` of `/connection/`.
@@ -123,11 +164,22 @@ export const readBoxSettings = (settings = {}) => ({
  * @param {number|null} options.devices - Hosts connected now, null when unknown.
  * @param {{ down: Array, up: Array }|null} options.history - readNetHistory(), or null.
  * @param {string} options.language - The user language.
+ * @param {string} [options.period] - hour, day or week: the width of the chart.
+ * @param {number} [options.offset] - How many periods back the chart ends.
  * @returns {object} The content.
  * @example
  * buildBoxWidget({ connection, system, wifi, devices: 12, history, language: 'fr' });
  */
-export function buildBoxWidget({ connection, system, wifi, devices, history, language }) {
+export function buildBoxWidget({
+  connection,
+  system,
+  wifi,
+  devices,
+  history,
+  language,
+  period = DEFAULT_PERIOD,
+  offset = 0,
+}) {
   const components = [
     {
       type: 'text',
@@ -158,23 +210,17 @@ export function buildBoxWidget({ connection, system, wifi, devices, history, lan
       color: 'primary',
     },
   ];
-  const temperature = hottest((system && system.sensors) || []);
-  if (temperature !== null) {
-    components.push({
-      type: 'value',
-      value: formatNumber(temperature, language, 0),
-      unit: '°C',
-      label: t('tileTemperature', language),
-      icon: 'thermometer',
-      color: temperature >= 85 ? 'danger' : temperature >= 75 ? 'warning' : 'success',
-    });
-  }
-
-  if (history && (history.down.length > 1 || history.up.length > 1)) {
+  const charted = Boolean(history && (history.down.length > 1 || history.up.length > 1));
+  if (charted) {
     components.push({
       type: 'chart',
       chart_type: 'area',
-      title: t('chartTraffic', language),
+      title:
+        offset > 0
+          ? t('chartTrafficAgo', language, {
+              ago: t(AGO_TEXTS[period], language, { count: offset }),
+            })
+          : t('chartTraffic', language),
       unit: 'Mbit/s',
       series: [
         { name: t('seriesDownload', language), points: history.down },
@@ -212,6 +258,17 @@ export function buildBoxWidget({ connection, system, wifi, devices, history, lan
   if (typeof devices === 'number') {
     items.push({ label: t('rowDevices', language), value: devices, icon: 'smartphone' });
   }
+  // A row, not a tile: the 8 components of a card go to the rates, the chart
+  // and three buttons.
+  const temperature = hottest((system && system.sensors) || []);
+  if (temperature !== null) {
+    items.push({
+      label: t('rowTemperature', language),
+      value: `${formatNumber(temperature, language, 0)} °C`,
+      icon: 'thermometer',
+      color: temperature >= 85 ? 'danger' : temperature >= 75 ? 'warning' : 'success',
+    });
+  }
   const fan = system && system.fans && system.fans[0];
   if (fan) {
     items.push({
@@ -221,7 +278,36 @@ export function buildBoxWidget({ connection, system, wifi, devices, history, lan
     });
   }
   components.push({ type: 'status', items });
+  if (offset > 0 && !charted) {
+    components.push({ type: 'text', variant: 'body', text: t('historyEmpty', language) });
+  }
 
+  // Back in time while the box has something to show, forward again until
+  // the chart ends now.
+  if (charted && offset < (MAX_OFFSETS[period] ?? 0)) {
+    components.push({
+      type: 'button',
+      label: t('buttonEarlier', language),
+      icon: 'chevron-left',
+      style: 'secondary',
+      action: { key: WIDGET_ACTIONS.HISTORY_EARLIER, params: { offset: offset + 1 } },
+    });
+  }
+  if (offset > 0) {
+    components.push({
+      type: 'button',
+      label: t('buttonLater', language),
+      icon: 'chevron-right',
+      style: 'secondary',
+      action: { key: WIDGET_ACTIONS.HISTORY_LATER, params: { offset: offset - 1 } },
+    });
+  }
+
+  // Looking back, the two buttons of the box give way to the way forward: a
+  // card holds 8 components, and no reboot is one tap away from "Later".
+  if (offset > 0) {
+    return { ttl_seconds: 30, components };
+  }
   if (wifiKnown) {
     components.push(
       wifi.enabled
@@ -430,11 +516,13 @@ function hostDetail(host, language) {
  * @param {Array<object>|null} options.hosts - readHosts(), null when not read yet.
  * @param {string} options.language - The user language.
  * @param {string} [options.show] - connected, disconnected or all.
+ * @param {number} [options.page] - The page of the list, from 1 (brought back
+ * to the last one when the list got shorter).
  * @returns {object} The content.
  * @example
- * buildNetworkWidget({ hosts, language: 'fr', show: 'connected' });
+ * buildNetworkWidget({ hosts, language: 'fr', show: 'connected', page: 2 });
  */
-export function buildNetworkWidget({ hosts, language, show = 'connected' }) {
+export function buildNetworkWidget({ hosts, language, show = 'connected', page = 1 }) {
   if (!Array.isArray(hosts)) {
     return messageContent(t('networkUnavailable', language), 30);
   }
@@ -488,13 +576,16 @@ export function buildNetworkWidget({ hosts, language, show = 'connected' }) {
     components.push({ type: 'text', variant: 'body', text: t('networkEmpty', language) });
     return { ttl_seconds: 60, components };
   }
+  const pages = Math.ceil(listed.length / MAX_LIST_ITEMS);
+  const current = Math.min(Math.max(1, page), pages);
+  const first = (current - 1) * MAX_LIST_ITEMS;
   components.push({
     type: 'card-list',
     display: 'list',
     // A device gone shows when it was last seen (the front puts the date in
     // place of the subtitle); a tap opens every detail, the MAC address the
     // presence trigger filters on included.
-    items: listed.slice(0, MAX_LIST_ITEMS).map((host) => ({
+    items: listed.slice(first, first + MAX_LIST_ITEMS).map((host) => ({
       title: clip(host.name, 60),
       subtitle: clip([host.ip, host.mac].filter(Boolean).join(' · '), 80),
       ...(!host.active && host.lastSeen ? { date: new Date(host.lastSeen).toISOString() } : {}),
@@ -502,12 +593,38 @@ export function buildNetworkWidget({ hosts, language, show = 'connected' }) {
       description: hostDetail(host, language),
     })),
   });
-  if (listed.length > MAX_LIST_ITEMS) {
+  if (pages > 1) {
     components.push({
       type: 'text',
       variant: 'body',
-      text: t('networkMore', language, { count: listed.length - MAX_LIST_ITEMS }),
+      text: t('networkPage', language, {
+        page: current,
+        pages,
+        from: first + 1,
+        to: Math.min(first + MAX_LIST_ITEMS, listed.length),
+        count: listed.length,
+      }),
     });
+    // The buttons carry the page to show, not a direction: two taps on the
+    // same card land on the same page.
+    if (current > 1) {
+      components.push({
+        type: 'button',
+        label: t('buttonPrevious', language),
+        icon: 'chevron-left',
+        style: 'secondary',
+        action: { key: WIDGET_ACTIONS.PAGE_PREVIOUS, params: { page: current - 1 } },
+      });
+    }
+    if (current < pages) {
+      components.push({
+        type: 'button',
+        label: t('buttonNext', language),
+        icon: 'chevron-right',
+        style: 'secondary',
+        action: { key: WIDGET_ACTIONS.PAGE_NEXT, params: { page: current + 1 } },
+      });
+    }
   }
   return { ttl_seconds: 60, components };
 }
