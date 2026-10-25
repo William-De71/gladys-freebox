@@ -5,6 +5,12 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions
 follow [Semantic Versioning](https://semver.org/). This file is generated at
 each release from the Conventional Commits: do not edit it by hand.
 
+## [1.6.0] - 2026-10-25
+
+### Added
+
+- require Gladys 5.3 and declare catalog keywords and countries ([8a07da8](https://github.com/William-De71/gladys-freebox/commit/8a07da871b0c840dfe36bd2ef4c38dc5baff40a4))
+
 ## [1.5.1] - 2026-10-24
 
 ### Security
@@ -103,6 +109,7 @@ each release from the Conventional Commits: do not edit it by hand.
 
 ## 1.0.0 (2026-07-24)
 
+[1.6.0]: https://github.com/William-De71/gladys-freebox/compare/v1.5.1...v1.6.0
 [1.5.1]: https://github.com/William-De71/gladys-freebox/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/William-De71/gladys-freebox/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/William-De71/gladys-freebox/compare/v1.3.0...v1.4.0
