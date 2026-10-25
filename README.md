@@ -5,7 +5,7 @@
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Latest release](https://img.shields.io/github/v/release/William-De71/gladys-freebox?sort=semver)](https://github.com/William-De71/gladys-freebox/releases)
 [![CI](https://img.shields.io/github/actions/workflow/status/William-De71/gladys-freebox/release.yml?branch=main&label=CI)](https://github.com/William-De71/gladys-freebox/actions/workflows/release.yml)
-[![Gladys](https://img.shields.io/badge/Gladys-%E2%89%A5%205.1.0-2f6fb5)](https://gladysassistant.com)
+[![Gladys](https://img.shields.io/badge/Gladys-%E2%89%A5%205.3.0-2f6fb5)](https://gladysassistant.com)
 
 ![Freebox for Gladys Assistant](cover.jpg)
 
@@ -129,7 +129,7 @@ ids, so two homonyms never collide.
 
 ## Installation
 
-1. In Gladys (`>= 5.1.0`), open **Integrations**, find **Freebox** in the catalog and install it. Gladys pulls the
+1. In Gladys (`>= 5.3.0`), open **Integrations**, find **Freebox** in the catalog and install it. Gladys pulls the
    multi-arch image (`linux/amd64`, `linux/arm64`) from `ghcr.io/william-de71/gladys-freebox`.
 2. Gladys must run **behind the Freebox** (same local network), so that `mafreebox.freebox.fr` resolves to the box.
 3. Pair the integration (see [Pairing](#pairing)), grant the permissions in Freebox OS, then **Discover → Scan** and
@@ -240,7 +240,7 @@ the image.
   those of the action results.
 - `test/release.test.js` covers the release script (versions, changelog, bump).
 
-Requirements: Gladys `>= 5.1.0` (widgets, scene triggers and actions), Node.js `>= 22.20`.
+Requirements: Gladys `>= 5.3.0` (widgets, scene triggers and actions; catalog keywords and countries of Gladys 5.3), Node.js `>= 22.20`.
 
 ## Release and commit convention
 

@@ -28,7 +28,7 @@ This integration lets you control your **Freebox** from Gladys Assistant, direct
 
 - A Freebox (Delta, Ultra, Pop, Revolution...) with the home automation server enabled.
 - Gladys Assistant and this integration must run on the **same local network** as the Freebox (access to `mafreebox.freebox.fr`).
-- Gladys Assistant **5.1.0** or later (dashboard widgets and scene triggers).
+- Gladys Assistant **5.3.0** or later (dashboard widgets, scene triggers, and the catalog keywords and countries of Gladys 5.3).
 
 ## Pairing
 

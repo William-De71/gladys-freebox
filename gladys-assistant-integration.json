@@ -10,9 +10,22 @@
   },
   "version": "1.5.1",
   "docker_image": "ghcr.io/william-de71/gladys-freebox:1.5.1",
-  "gladys_version": ">=5.1.0",
+  "gladys_version": ">=5.3.0",
   "cover_image": "https://raw.githubusercontent.com/William-De71/gladys-freebox/main/cover.jpg",
   "categories": ["security", "multimedia", "network"],
+  "keywords": [
+    "Free",
+    "Freebox Delta",
+    "Freebox Ultra",
+    "Freebox Pop",
+    "Freebox Revolution",
+    "Freebox OS",
+    "box internet",
+    "alarme",
+    "volet roulant",
+    "décodeur TV"
+  ],
+  "countries": ["FR"],
   "transports": ["local"],
   "config_schema": [
     {

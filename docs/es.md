@@ -28,7 +28,7 @@ Esta integración le permite controlar su **Freebox** desde Gladys Assistant, di
 
 - Una Freebox (Delta, Ultra, Pop, Revolution…) con el servidor domótico activado.
 - Gladys Assistant y esta integración deben estar en la **misma red local** que la Freebox (acceso a `mafreebox.freebox.fr`).
-- Gladys Assistant **5.1.0** o posterior (widgets del panel y activadores de escena).
+- Gladys Assistant **5.3.0** o posterior (widgets del panel, activadores de escena, y palabras clave y países del catálogo de Gladys 5.3).
 
 ## Vinculación
 

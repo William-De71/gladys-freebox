@@ -107,7 +107,8 @@ docs/illustrations/          generated widget images (render.sh, gen.mjs, render
 - **The container rootfs is read-only.** Write only under `/data` (nothing is
   written today); captures go through pipes, never temporary files.
 - **Gladys version.** Widgets and scene declarations need `gladys_version`
-  `>=5.1.0`; a widget button with `fields` (a form) would need 5.2.0.
+  `>=5.1.0`, the catalog `keywords` / `countries` `>=5.3.0` (the current
+  minimum); a widget button with `fields` (a form) would need 5.2.0.
 - **Four languages.** Every user-facing text (manifest, action results,
   `docs/*.md`, README) exists in English, French, German and Spanish, with the
   vocabulary of the Gladys interface. `test/i18n.test.js` and

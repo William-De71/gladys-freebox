@@ -28,7 +28,7 @@ Mit dieser Integration steuern Sie Ihre **Freebox** aus Gladys Assistant heraus,
 
 - Eine Freebox (Delta, Ultra, Pop, Revolution…) mit aktiviertem Hausautomations-Server.
 - Gladys Assistant und diese Integration müssen sich im **selben lokalen Netzwerk** wie die Freebox befinden (Zugriff auf `mafreebox.freebox.fr`).
-- Gladys Assistant **5.1.0** oder neuer (Dashboard-Widgets und Szenenauslöser).
+- Gladys Assistant **5.3.0** oder neuer (Dashboard-Widgets, Szenenauslöser sowie Katalog-Suchbegriffe und Länder von Gladys 5.3).
 
 ## Kopplung
 

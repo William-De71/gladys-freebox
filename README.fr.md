@@ -5,7 +5,7 @@
 [![Licence : Apache-2.0](https://img.shields.io/badge/licence-Apache--2.0-blue.svg)](LICENSE)
 [![Dernière version](https://img.shields.io/github/v/release/William-De71/gladys-freebox?sort=semver)](https://github.com/William-De71/gladys-freebox/releases)
 [![CI](https://img.shields.io/github/actions/workflow/status/William-De71/gladys-freebox/release.yml?branch=main&label=CI)](https://github.com/William-De71/gladys-freebox/actions/workflows/release.yml)
-[![Gladys](https://img.shields.io/badge/Gladys-%E2%89%A5%205.1.0-2f6fb5)](https://gladysassistant.com)
+[![Gladys](https://img.shields.io/badge/Gladys-%E2%89%A5%205.3.0-2f6fb5)](https://gladysassistant.com)
 
 ![Freebox pour Gladys Assistant](cover.jpg)
 
@@ -136,7 +136,7 @@ sélecteurs sont dérivés des mêmes identifiants : deux homonymes n'entrent ja
 
 ## Installation
 
-1. Dans Gladys (`>= 5.1.0`), ouvrez **Intégrations**, trouvez **Freebox** dans le catalogue et installez-la. Gladys
+1. Dans Gladys (`>= 5.3.0`), ouvrez **Intégrations**, trouvez **Freebox** dans le catalogue et installez-la. Gladys
    télécharge l'image multi-architecture (`linux/amd64`, `linux/arm64`) depuis `ghcr.io/william-de71/gladys-freebox`.
 2. Gladys doit tourner **derrière la Freebox** (même réseau local), pour que `mafreebox.freebox.fr` désigne la box.
 3. Appairez l'intégration (voir [Appairage](#appairage)), accordez les permissions dans Freebox OS, puis
@@ -252,7 +252,7 @@ rapide) et ne fait pas partie de l'image.
   des résultats d'actions.
 - `test/release.test.js` couvre le script de release (versions, changelog, mise à jour des versions).
 
-Prérequis : Gladys `>= 5.1.0` (widgets, déclencheurs et actions de scène), Node.js `>= 22.20`.
+Prérequis : Gladys `>= 5.3.0` (widgets, déclencheurs et actions de scène ; mots-clés et pays du catalogue de Gladys 5.3), Node.js `>= 22.20`.
 
 ## Release et convention de commits
 

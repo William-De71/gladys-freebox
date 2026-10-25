@@ -19,6 +19,20 @@ test('manifest declares the mandatory fields', () => {
   assert.ok(manifest.gladys_version.startsWith('>='));
 });
 
+test('catalog keywords and countries (Gladys 5.3.0)', () => {
+  assert.equal(manifest.gladys_version, '>=5.3.0');
+  const { keywords } = manifest;
+  assert.ok(Array.isArray(keywords) && keywords.length >= 1 && keywords.length <= 10);
+  keywords.forEach((keyword) => {
+    assert.ok(keyword.trim().length >= 2 && keyword.trim().length <= 30, keyword);
+  });
+  const normalized = keywords.map((keyword) => keyword.trim().toLowerCase());
+  assert.equal(new Set(normalized).size, normalized.length);
+  assert.ok(!normalized.includes(manifest.name.toLowerCase()));
+  // Free boxes are sold in France only.
+  assert.deepEqual(manifest.countries, ['FR']);
+});
+
 // The four languages of the Gladys interface.
 const LANGUAGES = ['en', 'fr', 'de', 'es'];
 

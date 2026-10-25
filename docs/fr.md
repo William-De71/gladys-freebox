@@ -28,7 +28,7 @@ Cette intégration permet de contrôler votre **Freebox** depuis Gladys Assistan
 
 - Une Freebox (Delta, Ultra, Pop, Revolution...) avec le serveur domotique activé.
 - Gladys Assistant et cette intégration doivent être sur le **même réseau local** que la Freebox (accès à `mafreebox.freebox.fr`).
-- Gladys Assistant **5.1.0** ou plus récent (widgets du tableau de bord et déclencheurs de scène).
+- Gladys Assistant **5.3.0** ou plus récent (widgets du tableau de bord, déclencheurs de scène, et mots-clés et pays du catalogue de Gladys 5.3).
 
 ## Appairage
 
