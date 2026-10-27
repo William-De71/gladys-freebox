@@ -19,6 +19,13 @@ import { FREEBOX_LOCAL_URL, APP_IDENTITY, PLAYER } from './constants.js';
 
 const logger = createLogger({ name: 'freebox-client' });
 
+// The core polls every home device on the same tick (all at 30 s): the polls of
+// a tick share ONE `/home/tileset/all` reading instead of one request per
+// node. The Freebox Delta home system is known to choke on the stream of
+// shutter readings; fewer requests spare it. Well below the poll period, so
+// the next tick always reads the box again.
+export const TILESET_SHARE_MS = 5000;
+
 /**
  * Normalize a Freebox `result` payload into an array. Depending on the box
  * state (no home module installed, empty collection...), the API answers with
@@ -41,6 +48,9 @@ export class FreeboxClient {
     this.sessionToken = null;
     // Session opening in flight, shared by concurrent callers (see openSession).
     this.sessionPromise = null;
+    // `/home/tileset/all` reading shared by the polls of a tick (see loadTileset).
+    this.tilesetPromise = null;
+    this.tilesetAt = 0;
   }
 
   /**
@@ -286,41 +296,65 @@ export class FreeboxClient {
   }
 
   /**
-   * Read the current values of a single node (used for polling).
+   * Read every tile of the box, shared by the callers of the next
+   * TILESET_SHARE_MS: the polls of one tick cost a single request. A failed
+   * reading is not kept, the next caller tries again.
+   * @param {string} appToken - The stored app token.
+   * @param {Function} [now] - `() => number`, in ms.
+   * @returns {Promise<object[]>} The tiles.
+   * @example
+   * const tiles = await client.loadTileset(appToken);
+   */
+  loadTileset(appToken, now = Date.now) {
+    if (this.tilesetPromise && now() - this.tilesetAt < TILESET_SHARE_MS) {
+      return this.tilesetPromise;
+    }
+    this.tilesetAt = now();
+    const reading = this.authRequest(appToken, { path: '/home/tileset/all' }).then(
+      ({ status, data }) => {
+        // The shape of this answer is the thing to check first when no value
+        // ever reaches the dashboard: a non-array `result`, an error payload or
+        // an empty list all end up as "no recent value" downstream.
+        logger.debug(
+          `Freebox /home/tileset/all -> HTTP ${status} success=${data && data.success} ` +
+            `result=${Array.isArray(data && data.result) ? `${data.result.length} tile(s)` : typeof (data && data.result)}` +
+            `${data && data.error_code ? ` error_code=${data.error_code} msg=${data.msg}` : ''}`,
+        );
+        return asArray(data && data.result);
+      },
+    );
+    this.tilesetPromise = reading;
+    reading.catch(() => {
+      if (this.tilesetPromise === reading) {
+        this.tilesetPromise = null;
+      }
+    });
+    return reading;
+  }
+
+  /**
+   * Read the current values of a single node (used for polling), from the
+   * reading shared by the polls of the tick (see loadTileset).
    * @param {string} appToken - The stored app token.
    * @param {number|string} nodeId - The Freebox node id.
-   * @returns {Promise<object[]>} The `data` array of the node tile.
+   * @returns {Promise<object[]>} The `data` arrays of the node tiles, merged.
    * @example
    * const data = await client.loadNodeValues(appToken, 12);
    */
   async loadNodeValues(appToken, nodeId) {
-    const { status, data } = await this.authRequest(appToken, {
-      path: `/home/tileset/${nodeId}`,
-    });
-    const tiles = asArray(data && data.result);
-
-    // The shape of this answer is the thing to check first when no value ever
-    // reaches the dashboard: a non-array `result`, an error payload or an empty
-    // list all end up as "no recent value" downstream, for different reasons.
-    logger.debug(
-      `Freebox /home/tileset/${nodeId} -> HTTP ${status} success=${data && data.success} ` +
-        `result=${Array.isArray(data && data.result) ? `${data.result.length} tile(s)` : typeof (data && data.result)}` +
-        `${data && data.error_code ? ` error_code=${data.error_code} msg=${data.msg}` : ''}`,
+    const tiles = (await this.loadTileset(appToken)).filter(
+      (tile) => tile && String(tile.node_id) === String(nodeId),
     );
-    logger.debug(`Freebox /home/tileset/${nodeId} raw payload: ${JSON.stringify(data)}`);
+    logger.debug(`Freebox node ${nodeId}: ${JSON.stringify(tiles)}`);
 
-    // An answer carrying no tile means the poll below has nothing to read: it
-    // is not normal for a node the user created, so say it out loud.
+    // No tile for a node the user created is not normal (removed from the box,
+    // permission withdrawn): say it out loud.
     if (tiles.length === 0) {
-      logger.warn(
-        `Freebox /home/tileset/${nodeId} returned no tile ` +
-          `(success=${data && data.success}${data && data.error_code ? `, error_code=${data.error_code}` : ''})`,
-      );
+      logger.warn(`Freebox /home/tileset/all carries no tile for node ${nodeId}`);
     }
 
-    // A node can expose several tiles (that is how /home/tileset/all groups
-    // them), each carrying part of the endpoints. Reading only the first one
-    // would silently drop the values of the others.
+    // A node can expose several tiles, each carrying part of the endpoints.
+    // Reading only the first one would silently drop the values of the others.
     return tiles.flatMap((tile) => asArray(tile && tile.data));
   }
 
@@ -330,15 +364,19 @@ export class FreeboxClient {
    * @param {number|string} nodeId - The Freebox node id.
    * @param {number|string} endpointId - The endpoint id.
    * @param {number|null} value - The value to write.
+   * @param {object} [options] - Options.
+   * @param {number} [options.timeout] - Request timeout in ms, shorter than the
+   * default for a command that has to fit in the 5 s acknowledgement.
    * @returns {Promise<void>} Resolves when written.
    * @example
    * await client.setEndpointValue(appToken, 12, 1, 1);
    */
-  async setEndpointValue(appToken, nodeId, endpointId, value) {
+  async setEndpointValue(appToken, nodeId, endpointId, value, { timeout } = {}) {
     const { status, data } = await this.authRequest(appToken, {
       method: 'PUT',
       path: `/home/endpoints/${nodeId}/${endpointId}`,
       data: { value },
+      ...(timeout ? { timeout } : {}),
     });
 
     // The Freebox answers 200 with `success: false` when it refuses a write
@@ -625,10 +663,27 @@ export class FreeboxClient {
     return asArray(result && result.data);
   }
 
+  /**
+   * List the home nodes with their state (`status`: `active`, `unreachable`,
+   * `disabled`, `unpaired`) and `category` (`shutter`, `basic_shutter`,
+   * `alarm`, `pir`, `kfb`, `camera`...). Needs the "home" permission. The
+   * state is not part of the tiles: this is the only place telling that the
+   * box lost a device.
+   * @param {string} appToken - The stored app token.
+   * @returns {Promise<Array<object>>} The home nodes.
+   * @example
+   * const nodes = await client.loadHomeNodes(appToken);
+   */
+  async loadHomeNodes(appToken) {
+    return asArray(await this.resultOf(appToken, { path: '/home/nodes' }, 'home nodes'));
+  }
+
   /** Reset the in-memory session (e.g. on unpair). */
   reset() {
     this.sessionToken = null;
     this.sessionPromise = null;
+    this.tilesetPromise = null;
+    this.tilesetAt = 0;
   }
 }
 

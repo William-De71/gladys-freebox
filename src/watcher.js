@@ -1,5 +1,6 @@
 // -----------------------------------------------------------------------------
-// The watch loop: every WATCH_INTERVAL_MS, the LAN hosts and the call log.
+// The watch loop: every WATCH_INTERVAL_MS, the LAN hosts, the call log and
+// the state of the home nodes.
 //
 // These two lists feed scene triggers (a host connects or leaves, a call
 // enters the log) and two widgets, so they are read on the integration's own
@@ -8,9 +9,13 @@
 // Gladys. A round never overlaps another one; each list keeps its previous
 // snapshot when its reading fails, and the call log missing its permission
 // (`insufficient_rights`) is remembered so the widget can say so.
+//
+// The home nodes feed the health of the home automation (src/homeHealth.js):
+// they are only read when the box answered the hosts, so that a home API
+// error means "the home system is silent", not "the box is rebooting".
 // -----------------------------------------------------------------------------
 
-import { readHosts, readCalls } from './freebox/read.js';
+import { readHosts, readCalls, readHomeNodes } from './freebox/read.js';
 import { diffPresence, newCalls, hostsSignature, callsSignature } from './tracker.js';
 
 // Twice a minute: the box itself takes a few minutes to mark a host as gone,
@@ -23,7 +28,8 @@ export const WATCH_INTERVAL_MS = 30000;
  * @param {import('./freebox/FreeboxClient.js').FreeboxClient} options.client - Freebox client.
  * @param {Function} options.getAppToken - `async () => string|null`.
  * @param {Function} options.onRound - `async (round) => void`, with the
- * transitions of the round: `{ presence, calls, hostsChanged, callsChanged }`.
+ * transitions of the round: `{ presence, calls, hostsChanged, callsChanged,
+ * home }`, `home` being `{ nodes }`, `{ error }` or null (see homeHealth.js).
  * @param {object} options.logger - Logger.
  * @param {number} [options.intervalMs] - Period of the loop.
  * @param {Function} [options.now] - `() => number`, in ms.
@@ -45,6 +51,7 @@ export function createWatcher({
   let calls = null;
   let callsAt = null;
   let callsError = null;
+  let homeError = null;
   let timer = null;
   let running = null;
 
@@ -61,12 +68,16 @@ export function createWatcher({
     const previousHosts = hosts;
     const previousCalls = calls;
 
+    let boxAnswered = false;
     try {
       hosts = readHosts(await client.loadLanHosts(appToken));
       hostsAt = now();
+      boxAnswered = true;
     } catch (e) {
       logger.warn(`Freebox: unable to read the LAN hosts: ${e.message}`);
     }
+
+    const home = boxAnswered ? await readHome(appToken) : null;
 
     try {
       calls = readCalls(await client.loadCallLog(appToken));
@@ -100,7 +111,32 @@ export function createWatcher({
         previousHosts !== null && hostsSignature(previousHosts) !== hostsSignature(hosts),
       callsChanged:
         previousCalls !== calls && callsSignature(previousCalls) !== callsSignature(calls),
+      home,
     });
+  }
+
+  /**
+   * Read the home nodes.
+   * @param {string} appToken - The stored app token.
+   * @returns {Promise<{ nodes: Array<object> }|{ error: string }|null>} The
+   * nodes, the error of a home API that did not answer, or null when the app
+   * lacks the "home" permission (nothing to watch then).
+   */
+  async function readHome(appToken) {
+    try {
+      const nodes = readHomeNodes(await client.loadHomeNodes(appToken));
+      homeError = null;
+      return { nodes };
+    } catch (e) {
+      const code = e.code || 'error';
+      // Logged once per cause: a box with no home system would otherwise fill
+      // the logs twice a minute.
+      if (code !== homeError) {
+        logger.warn(`Freebox: unable to read the home nodes: ${e.message}`);
+      }
+      homeError = code;
+      return code === 'insufficient_rights' ? null : { error: e.message };
+    }
   }
 
   /**
@@ -140,6 +176,7 @@ export function createWatcher({
       calls = null;
       callsAt = null;
       callsError = null;
+      homeError = null;
     },
     snapshot() {
       return { hosts, hostsAt, calls, callsAt, callsError };

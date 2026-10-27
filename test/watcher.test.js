@@ -17,6 +17,8 @@ function setup({ token = 'token' } = {}) {
     hostsFail: false,
     calls: [...SAMPLE_CALLS],
     callsError: null,
+    nodes: [{ id: 21, label: 'Volet salon', category: 'shutter', status: 'active' }],
+    homeError: null,
   };
   const rounds = [];
   const logs = [];
@@ -34,6 +36,14 @@ function setup({ token = 'token' } = {}) {
         throw error;
       }
       return box.calls;
+    },
+    loadHomeNodes: async () => {
+      if (box.homeError) {
+        const error = new Error(box.homeError);
+        error.code = box.homeError;
+        throw error;
+      }
+      return box.nodes;
     },
   };
   const watcher = createWatcher({
@@ -128,4 +138,31 @@ test('reset forgets the lists: the next round is a baseline again', async () => 
   box.hosts = [{ ...SAMPLE_HOSTS[0], active: false }, ...SAMPLE_HOSTS.slice(1)];
   await watcher.runNow();
   assert.deepEqual(rounds[1].presence, []);
+});
+
+test('each round carries the home nodes the box answered', async () => {
+  const { watcher, rounds } = setup();
+  await watcher.runNow();
+  assert.deepEqual(rounds[0].home, {
+    nodes: [{ id: 21, name: 'Volet salon', category: 'shutter', status: 'active' }],
+  });
+});
+
+test('a home API error is reported only when the rest of the box answered', async () => {
+  const { watcher, box, rounds } = setup();
+  box.homeError = 'internal_error';
+  await watcher.runNow();
+  assert.deepEqual(rounds[0].home, { error: 'internal_error' });
+
+  // The whole box is silent (rebooting): nothing to say about its home system.
+  box.hostsFail = true;
+  await watcher.runNow();
+  assert.equal(rounds[1].home, null);
+});
+
+test('without the home permission there is nothing to watch', async () => {
+  const { watcher, box, rounds } = setup();
+  box.homeError = 'insufficient_rights';
+  await watcher.runNow();
+  assert.equal(rounds[0].home, null);
 });

@@ -27,6 +27,14 @@ import { toPublishedDevice, toNativeId, forLog } from './externalId.js';
 
 const logger = createLogger({ name: 'freebox-devices' });
 
+// A home command is tried twice: the Freebox home system drops a write now and
+// then, mostly towards io-homecontrol shutters. Both attempts and the pause
+// between them fit in the 5 s the core waits for the acknowledgement, hence
+// the request timeout well below the default 10 s.
+const WRITE_ATTEMPTS = 2;
+const WRITE_TIMEOUT_MS = 1800;
+const WRITE_RETRY_DELAY_MS = 400;
+
 // Gladys television feature types -> Freebox player media commands, sent to
 // `/control/mediactrl`. These act on the MEDIA currently played: "next" is the
 // next track/chapter, never the next TV channel (zapping goes through `open`).
@@ -523,11 +531,21 @@ function featureLabel(device, feature) {
  * @param {object} device - The Gladys device.
  * @param {object} feature - The Gladys device feature.
  * @param {number} value - The new value.
+ * @param {object} [options] - Options.
+ * @param {number} [options.retryDelayMs] - Pause before the second attempt.
  * @returns {Promise<void>} Resolves when applied.
  * @example
  * await setDeviceValue(gladys, client, appToken, device, feature, 1);
  */
-export async function setDeviceValue(gladys, client, appToken, rawDevice, feature, value) {
+export async function setDeviceValue(
+  gladys,
+  client,
+  appToken,
+  rawDevice,
+  feature,
+  value,
+  { retryDelayMs = WRITE_RETRY_DELAY_MS } = {},
+) {
   // external_ids are prefixed with `ext:<selector>:`; parse the native ids.
   const [prefix, nodeId, endpointId] = toNativeId(gladys, feature.external_id).split(':');
   if (prefix !== 'freebox') {
@@ -606,7 +624,47 @@ export async function setDeviceValue(gladys, client, appToken, rawDevice, featur
     `Freebox set node ${nodeId}: ${feature.category}/${feature.type}, model=${device.model}, ` +
       `PUT /home/endpoints/${nodeId}/${endpointIdToDevice} ${JSON.stringify({ value: valueToDevice })}`,
   );
-  await client.setEndpointValue(appToken, nodeId, endpointIdToDevice, valueToDevice);
+  await writeWithRetry(client, appToken, nodeId, endpointIdToDevice, valueToDevice, retryDelayMs);
+}
+
+/**
+ * Write a home endpoint, once more when the box drops the first attempt.
+ * Writing a position, a stop or an alarm command twice is harmless: the second
+ * write only repeats what the first one asked.
+ * @param {import('./freebox/FreeboxClient.js').FreeboxClient} client - Freebox client.
+ * @param {string} appToken - The stored app token.
+ * @param {string} nodeId - The Freebox node id.
+ * @param {string|number} endpointId - The endpoint id.
+ * @param {number|null} value - The value to write.
+ * @param {number} retryDelayMs - Pause before the second attempt.
+ * @returns {Promise<void>} Resolves when one attempt went through.
+ * @example
+ * await writeWithRetry(client, appToken, '21', '3', 100, 400);
+ */
+async function writeWithRetry(client, appToken, nodeId, endpointId, value, retryDelayMs) {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      await client.setEndpointValue(appToken, nodeId, endpointId, value, {
+        timeout: WRITE_TIMEOUT_MS,
+      });
+      if (attempt > 1) {
+        logger.info(`Freebox write ${nodeId}/${endpointId} went through on attempt ${attempt}`);
+      }
+      return;
+    } catch (e) {
+      if (attempt >= WRITE_ATTEMPTS) {
+        throw new Error(
+          `The Freebox did not apply the command after ${attempt} attempts (${e.message}). ` +
+            'If its home devices stay unreachable, rebooting the Freebox brings them back.',
+          { cause: e },
+        );
+      }
+      logger.warn(`Freebox write ${nodeId}/${endpointId} failed, trying again: ${e.message}`);
+      await new Promise((resolve) => {
+        setTimeout(resolve, retryDelayMs);
+      });
+    }
+  }
 }
 
 /**

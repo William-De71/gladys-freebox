@@ -22,7 +22,7 @@ Cette intégration permet de contrôler votre **Freebox** depuis Gladys Assistan
 - **Actions** : appairer, tester la connexion, redémarrer la Freebox et désappairer, directement depuis l'écran de configuration.
 - **Wi-Fi et températures** : l'appareil **Freebox Server** porte aussi un **interrupteur Wi-Fi** (tous les points d'accès de la box) et les **capteurs de température** de la box.
 - **Widgets du tableau de bord** : la box en un coup d'œil (débits, historique du trafic, température, boutons Wi-Fi et redémarrage), le **journal d'appels** et les **appareils connectés** à votre réseau.
-- **Scènes** : un déclencheur à chaque **appel téléphonique** et à chaque **appareil qui se connecte ou quitte** votre réseau, et une action pour **réveiller un ordinateur** (Wake-on-LAN).
+- **Scènes** : un déclencheur à chaque **appel téléphonique** et à chaque **appareil qui se connecte ou quitte** votre réseau, un déclencheur quand la domotique **perd ou retrouve les volets roulants**, une action pour **réveiller un ordinateur** (Wake-on-LAN) et une action pour **redémarrer la box**.
 
 ## Prérequis
 
@@ -95,18 +95,32 @@ Ajoutez-les depuis l'édition du tableau de bord (**Freebox** dans la liste des 
 
 ## Scènes
 
-L'intégration ajoute deux déclencheurs et une action à l'éditeur de scènes, dans la catégorie **Intégrations** :
+L'intégration ajoute trois déclencheurs et deux actions à l'éditeur de scènes, dans la catégorie **Intégrations** :
 
 | Élément                                                    | Filtres                                                                 | Variables                                                                               |
 | ---------------------------------------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
 | Déclencheur **Freebox : appel téléphonique**               | type d'appel, numéro de téléphone                                       | `call_type` (`missed`, `accepted`, `outgoing`), `number`, `name`, `duration` (secondes) |
 | Déclencheur **Freebox : appareil connecté ou parti**       | événement (`connected`, `disconnected`), adresse MAC, nom de l'appareil | `event`, `mac`, `name`, `ip`, `connection` (`wifi`, `ethernet`), `vendor`               |
 | Action **Freebox : réveiller un ordinateur (Wake-on-LAN)** | adresse MAC                                                             | aucune                                                                                  |
+| Déclencheur **Freebox : domotique perdue ou rétablie**     | événement (`unreachable`, `reachable`)                                  | `event`, `cause`, `count`, `names`, `minutes`                                           |
+| Action **Freebox : redémarrer la box**                     | intervalle minimum (minutes, 60 par défaut)                             | aucune                                                                                  |
 
 - Un appel arrive dans le journal **une fois terminé** : le déclencheur part à ce moment-là, pas pendant la sonnerie. Exemple : appel manqué → envoyer `Appel manqué de {{triggerEvent.data.name}} ({{triggerEvent.data.number}})`.
 - Saisissez l'adresse MAC **en majuscules avec des deux-points** (`AA:BB:CC:DD:EE:FF`), comme l'affiche le widget **Appareils du réseau**.
 - Après un redémarrage de l'intégration, rien n'est rejoué : seuls les appels et les mouvements qui surviennent ensuite déclenchent une scène.
 - Le Wake-on-LAN ne réveille qu'un ordinateur dont la carte réseau est configurée pour cela (BIOS et système).
+
+## Volets injoignables (Freebox Delta)
+
+La Freebox Delta pilote elle-même les volets io-homecontrol, et sa domotique les perd parfois : l'application Freebox les affiche injoignables et ils ne répondent plus, jusqu'au redémarrage de la box. L'intégration ne peut pas réparer la box, mais elle atténue le problème et vous prévient :
+
+- **Chaque commande de volet est tentée deux fois** quand la box laisse tomber la première. Si les deux échouent, Gladys affiche une erreur qui suggère un redémarrage.
+- Le déclencheur **Freebox : domotique perdue ou rétablie** part **une fois** au début du problème et **une fois** quand il est terminé. Il part quand un volet reste injoignable pendant une minute, quand la domotique de la box ne répond plus, ou quand une commande de volet échoue. Variables : `cause` (`devices_unreachable`, `home_not_responding`, `command_failed`), `count` et `names` (les volets concernés), et `minutes` (durée de la panne, au rétablissement).
+- L'action **Freebox : redémarrer la box** la redémarre depuis une scène, jamais deux fois dans son **intervalle minimum** (60 minutes par défaut, 15 au minimum), même après un redémarrage de Gladys.
+
+Exemple de scène : déclencheur **Freebox : domotique perdue ou rétablie** avec l'événement **Perdue** → envoyer un message `Volets perdus ({{triggerEvent.data.names}}), redémarrage de la Freebox` → action **Freebox : redémarrer la box**. Ajoutez une condition d'horaire si vous ne voulez pas couper internet, la TV et le téléphone en soirée.
+
+⚠️ Un redémarrage coupe internet, la TV et le téléphone quelques minutes, et demande la permission **Modification des réglages de la Freebox**. Seuls les volets comptent : un capteur dont la pile est vide ne le déclenche jamais.
 
 ## Limitation des Freebox Player POP / Android TV
 
@@ -129,3 +143,4 @@ L'action **« Redémarrer la Freebox »** de l'écran de configuration relance v
 - **Le widget Appels téléphoniques demande une permission** : cochez **Accès au journal d'appels** pour Gladys Assistant dans Freebox OS ; le widget se remplit dans les 30 secondes.
 - **Interrupteur Wi-Fi refusé** : la permission « Modification des réglages de la Freebox » n'est pas cochée.
 - **Un appareil reste « connecté » après son départ** : la Freebox le garde actif quelques minutes après son dernier échange ; le déclencheur part dès que la box le marque comme parti.
+- **Volets souvent injoignables** : voir [Volets injoignables](#volets-injoignables-freebox-delta). Vérifiez aussi l'emplacement du Freebox Server : sa radio io-homecontrol est à l'intérieur, et un meuble fermé ou une baie métallique réduit sa portée.

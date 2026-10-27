@@ -538,6 +538,105 @@
           }
         }
       ]
+    },
+    {
+      "key": "home_reachability",
+      "label": {
+        "en": "Freebox: home automation lost or back",
+        "fr": "Freebox : domotique perdue ou rétablie",
+        "de": "Freebox: Hausautomation verloren oder zurück",
+        "es": "Freebox: domótica perdida o recuperada"
+      },
+      "description": {
+        "en": "The box loses its roller shutters (unreachable, home system silent, command refused) or gets them back.",
+        "fr": "La box perd ses volets roulants (injoignables, domotique muette, commande refusée) ou les retrouve.",
+        "de": "Die Box verliert ihre Rollläden (nicht erreichbar, Hausautomation stumm, Befehl abgelehnt) oder findet sie wieder.",
+        "es": "La box pierde sus persianas (inaccesibles, domótica sin respuesta, orden rechazada) o las recupera."
+      },
+      "fields": [
+        {
+          "key": "event",
+          "type": "select",
+          "label": {
+            "en": "Event",
+            "fr": "Événement",
+            "de": "Ereignis",
+            "es": "Evento"
+          },
+          "options": [
+            {
+              "value": "unreachable",
+              "label": {
+                "en": "Lost",
+                "fr": "Perdue",
+                "de": "Verloren",
+                "es": "Perdida"
+              }
+            },
+            {
+              "value": "reachable",
+              "label": {
+                "en": "Back",
+                "fr": "Rétablie",
+                "de": "Zurück",
+                "es": "Recuperada"
+              }
+            }
+          ]
+        }
+      ],
+      "variables": [
+        {
+          "key": "event",
+          "type": "string",
+          "label": {
+            "en": "Event (unreachable, reachable)",
+            "fr": "Événement (unreachable, reachable)",
+            "de": "Ereignis (unreachable, reachable)",
+            "es": "Evento (unreachable, reachable)"
+          }
+        },
+        {
+          "key": "cause",
+          "type": "string",
+          "label": {
+            "en": "Cause (devices_unreachable, home_not_responding, command_failed)",
+            "fr": "Cause (devices_unreachable, home_not_responding, command_failed)",
+            "de": "Ursache (devices_unreachable, home_not_responding, command_failed)",
+            "es": "Causa (devices_unreachable, home_not_responding, command_failed)"
+          }
+        },
+        {
+          "key": "count",
+          "type": "number",
+          "label": {
+            "en": "Number of shutters concerned",
+            "fr": "Nombre de volets concernés",
+            "de": "Anzahl betroffener Rollläden",
+            "es": "Número de persianas afectadas"
+          }
+        },
+        {
+          "key": "names",
+          "type": "string",
+          "label": {
+            "en": "Shutters concerned",
+            "fr": "Volets concernés",
+            "de": "Betroffene Rollläden",
+            "es": "Persianas afectadas"
+          }
+        },
+        {
+          "key": "minutes",
+          "type": "number",
+          "label": {
+            "en": "Duration of the outage (minutes, when back)",
+            "fr": "Durée de la panne (minutes, au rétablissement)",
+            "de": "Dauer des Ausfalls (Minuten, bei Rückkehr)",
+            "es": "Duración de la avería (minutos, al recuperarse)"
+          }
+        }
+      ]
     }
   ],
   "scene_actions": [
@@ -572,6 +671,44 @@
             "fr": "AA:BB:CC:DD:EE:FF",
             "de": "AA:BB:CC:DD:EE:FF",
             "es": "AA:BB:CC:DD:EE:FF"
+          }
+        }
+      ]
+    },
+    {
+      "key": "reboot",
+      "label": {
+        "en": "Freebox: reboot the box",
+        "fr": "Freebox : redémarrer la box",
+        "de": "Freebox: Box neu starten",
+        "es": "Freebox: reiniciar la box"
+      },
+      "description": {
+        "en": "Cuts internet, TV and phone for a few minutes. Brings back the lost home devices.",
+        "fr": "Coupe internet, TV et téléphone quelques minutes. Rétablit les appareils domotiques perdus.",
+        "de": "Unterbricht Internet, TV und Telefon für einige Minuten. Stellt verlorene Hausgeräte wieder her.",
+        "es": "Corta internet, TV y teléfono unos minutos. Recupera los dispositivos domóticos perdidos."
+      },
+      "timeout_seconds": 20,
+      "fields": [
+        {
+          "key": "min_interval_minutes",
+          "type": "number",
+          "required": false,
+          "default": 60,
+          "min": 15,
+          "max": 1440,
+          "label": {
+            "en": "Minimum interval (minutes)",
+            "fr": "Intervalle minimum (minutes)",
+            "de": "Mindestabstand (Minuten)",
+            "es": "Intervalo mínimo (minutos)"
+          },
+          "description": {
+            "en": "No reboot if this action already rebooted the box more recently.",
+            "fr": "Pas de redémarrage si cette action a déjà redémarré la box plus récemment.",
+            "de": "Kein Neustart, wenn diese Aktion die Box kürzlich schon neu gestartet hat.",
+            "es": "No reinicia si esta acción ya reinició la box más recientemente."
           }
         }
       ]

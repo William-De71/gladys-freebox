@@ -54,8 +54,8 @@ User documentation: [English](docs/en.md) · [Français](docs/fr.md) · [Deutsch
 - **Dashboard widgets**: **Freebox** (rates, traffic history kept by the box, temperature, internet link, Wi-Fi,
   connected devices, fan, buttons to switch the Wi-Fi and reboot), **Phone calls** (the call log, mark as read) and
   **Network devices** (connected or gone, with IP and MAC addresses).
-- **Scenes**: triggers on a **phone call** and on a **device that connects to or leaves** the network, and a
-  **Wake-on-LAN** action.
+- **Scenes**: triggers on a **phone call** and on a **device that connects to or leaves** the network, a trigger when the home automation **loses or gets back the roller shutters**, and the
+  **Wake-on-LAN** and **reboot** actions.
 - **Configuration actions**: pair, test the connection, reboot the Freebox, unpair.
 - **Four languages** for the configuration screen and the action results: English, French, German, Spanish.
 
@@ -98,7 +98,7 @@ sequenceDiagram
   I->>G: publishDiscoveredDevices
   U->>G: Add a device
   G->>I: device created
-  I->>F: home/tileset/{node} (or player status, connection)
+  I->>F: home/tileset/all, shared by the polls of a tick (or player status, connection)
   I->>G: current states (changes only from then on)
   U->>G: Close the shutter (dashboard or scene)
   G->>I: setValue
@@ -188,13 +188,15 @@ together. Left alone for 5 minutes, the card goes back to the live chart and to 
 
 ## Scenes
 
-The integration declares two scene triggers and one scene action (category **Integrations** of the scene editor):
+The integration declares three scene triggers and two scene actions (category **Integrations** of the scene editor):
 
-| Key                       | Kind                                                | Filters                                              | Variables / outputs                                  |
-| ------------------------- | --------------------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------- |
-| `phone_call`              | trigger: a call entered the log (once it has ended) | `call_type` (multi-select), `number`                 | `call_type`, `number`, `name`, `duration`            |
-| `network_device_presence` | trigger: a device connected or left                 | `event` (`connected`, `disconnected`), `mac`, `name` | `event`, `mac`, `name`, `ip`, `connection`, `vendor` |
-| `wake_on_lan`             | action: the box sends a Wake-on-LAN packet          | `mac` (required)                                     | none                                                 |
+| Key                       | Kind                                                 | Filters                                              | Variables / outputs                                  |
+| ------------------------- | ---------------------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------- |
+| `phone_call`              | trigger: a call entered the log (once it has ended)  | `call_type` (multi-select), `number`                 | `call_type`, `number`, `name`, `duration`            |
+| `network_device_presence` | trigger: a device connected or left                  | `event` (`connected`, `disconnected`), `mac`, `name` | `event`, `mac`, `name`, `ip`, `connection`, `vendor` |
+| `wake_on_lan`             | action: the box sends a Wake-on-LAN packet           | `mac` (required)                                     | none                                                 |
+| `home_reachability`       | trigger: the box lost its shutters, or got them back | `event` (`unreachable`, `reachable`)                 | `event`, `cause`, `count`, `names`, `minutes`        |
+| `reboot`                  | action: reboot the box, at most once per interval    | `min_interval_minutes` (60 by default, 15 to 1440)   | none                                                 |
 
 The first reading after a start is a baseline: no call nor presence change is replayed. Every other value is a device
 feature, usable in the scene editor of Gladys like any other.
@@ -269,16 +271,17 @@ flowchart LR
 
 ## Troubleshooting
 
-| Symptom                                        | Likely cause                                                                 |
-| ---------------------------------------------- | ---------------------------------------------------------------------------- |
-| "Freebox not found on the local network"       | Gladys is not behind the Freebox, or `mafreebox.freebox.fr` does not resolve |
-| Pairing "not confirmed on the LCD screen"      | the 55 seconds ran out: stand next to the box, then run the action again     |
-| A device is missing from the scan              | its permission is not ticked in Freebox OS: tick it, then scan again         |
-| "Freebox session could not be opened"          | the app was revoked in Freebox OS: unpair, then pair again                   |
-| A Player is missing                            | Player POP / Android TV: no local API, the integration skips it              |
-| A remote key does nothing                      | undocumented `control/remote` key, not honoured by every Player firmware     |
-| No camera image                                | check the stream in Freebox OS; the image is refreshed every minute          |
-| No "Freebox Server" device on an older install | new device: Discover → Scan, then add it                                     |
+| Symptom                                        | Likely cause                                                                               |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| "Freebox not found on the local network"       | Gladys is not behind the Freebox, or `mafreebox.freebox.fr` does not resolve               |
+| Pairing "not confirmed on the LCD screen"      | the 55 seconds ran out: stand next to the box, then run the action again                   |
+| A device is missing from the scan              | its permission is not ticked in Freebox OS: tick it, then scan again                       |
+| "Freebox session could not be opened"          | the app was revoked in Freebox OS: unpair, then pair again                                 |
+| A Player is missing                            | Player POP / Android TV: no local API, the integration skips it                            |
+| A remote key does nothing                      | undocumented `control/remote` key, not honoured by every Player firmware                   |
+| Shutters often unreachable (Delta)             | the home system of the box lost them: commands are tried twice, a scene can reboot the box |
+| No camera image                                | check the stream in Freebox OS; the image is refreshed every minute                        |
+| No "Freebox Server" device on an older install | new device: Discover → Scan, then add it                                                   |
 
 Detailed logs: set the environment variable `DEBUG=gladys-integration-sdk` on the container.
 

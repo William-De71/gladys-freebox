@@ -61,7 +61,8 @@ Documentation utilisateur : [English](docs/en.md) · [Français](docs/fr.md) · 
   téléphoniques** (journal d'appels, marquer comme lus) et **Appareils du réseau** (connectés ou partis, avec adresses
   IP et MAC).
 - **Scènes** : déclencheurs sur un **appel téléphonique** et sur un **appareil qui se connecte au réseau ou le
-  quitte**, et une action **Wake-on-LAN**.
+  quitte**, un déclencheur quand la domotique **perd ou retrouve les volets roulants**, et les actions **Wake-on-LAN** et
+  **redémarrer la box**.
 - **Actions de configuration** : appairer, tester la connexion, redémarrer la Freebox, désappairer.
 - **Quatre langues** pour l'écran de configuration et les résultats des actions : anglais, français, allemand,
   espagnol.
@@ -105,7 +106,7 @@ sequenceDiagram
   I->>G: publishDiscoveredDevices
   U->>G: Ajouter un appareil
   G->>I: appareil créé
-  I->>F: home/tileset/{node} (ou état du player, connexion)
+  I->>F: home/tileset/all, partagé par les polls d’un même cycle (ou état du player, connexion)
   I->>G: états actuels (ensuite, seulement les changements)
   U->>G: Fermer le volet (tableau de bord ou scène)
   G->>I: setValue
@@ -198,13 +199,15 @@ première page.
 
 ## Scènes
 
-L'intégration déclare deux déclencheurs et une action de scène (catégorie **Intégrations** de l'éditeur de scènes) :
+L'intégration déclare trois déclencheurs et deux actions de scène (catégorie **Intégrations** de l'éditeur de scènes) :
 
 | Clé                       | Nature                                                              | Filtres                                              | Variables / sorties                                  |
 | ------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------- |
 | `phone_call`              | déclencheur : un appel est entré dans le journal (une fois terminé) | `call_type` (choix multiple), `number`               | `call_type`, `number`, `name`, `duration`            |
 | `network_device_presence` | déclencheur : un appareil s'est connecté ou est parti               | `event` (`connected`, `disconnected`), `mac`, `name` | `event`, `mac`, `name`, `ip`, `connection`, `vendor` |
 | `wake_on_lan`             | action : la box envoie un paquet Wake-on-LAN                        | `mac` (obligatoire)                                  | aucune                                               |
+| `home_reachability`       | déclencheur : la box a perdu ses volets, ou les a retrouvés         | `event` (`unreachable`, `reachable`)                 | `event`, `cause`, `count`, `names`, `minutes`        |
+| `reboot`                  | action : redémarrer la box, au plus une fois par intervalle         | `min_interval_minutes` (60 par défaut, de 15 à 1440) | aucune                                               |
 
 La première lecture après un démarrage sert de référence : aucun appel ni changement de présence n'est rejoué. Toutes
 les autres valeurs sont des fonctionnalités d'appareil, utilisables dans l'éditeur de scènes de Gladys comme
@@ -281,16 +284,17 @@ flowchart LR
 
 ## Dépannage
 
-| Symptôme                                                       | Cause probable                                                                      |
-| -------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| « Freebox not found on the local network »                     | Gladys n'est pas derrière la Freebox, ou `mafreebox.freebox.fr` n'est pas résolu    |
-| Appairage « not confirmed on the LCD screen »                  | les 55 secondes sont écoulées : placez-vous près de la box, puis relancez l'action  |
-| Un appareil manque au scan                                     | sa permission n'est pas cochée dans Freebox OS : cochez-la, puis relancez un scan   |
-| « Freebox session could not be opened »                        | l'application a été révoquée dans Freebox OS : désappairez, puis appairez à nouveau |
-| Un Player manque                                               | Player POP / Android TV : pas d'API locale, l'intégration l'ignore                  |
-| Une touche de télécommande ne fait rien                        | touche `control/remote` non documentée, pas prise en compte par tous les Players    |
-| Pas d'image de caméra                                          | vérifiez le flux dans Freebox OS ; l'image est rafraîchie chaque minute             |
-| Pas d'appareil « Freebox Server » (installation déjà en place) | nouvel appareil : Découverte → Scanner, puis ajoutez-le                             |
+| Symptôme                                                       | Cause probable                                                                                      |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| « Freebox not found on the local network »                     | Gladys n'est pas derrière la Freebox, ou `mafreebox.freebox.fr` n'est pas résolu                    |
+| Appairage « not confirmed on the LCD screen »                  | les 55 secondes sont écoulées : placez-vous près de la box, puis relancez l'action                  |
+| Un appareil manque au scan                                     | sa permission n'est pas cochée dans Freebox OS : cochez-la, puis relancez un scan                   |
+| « Freebox session could not be opened »                        | l'application a été révoquée dans Freebox OS : désappairez, puis appairez à nouveau                 |
+| Un Player manque                                               | Player POP / Android TV : pas d'API locale, l'intégration l'ignore                                  |
+| Une touche de télécommande ne fait rien                        | touche `control/remote` non documentée, pas prise en compte par tous les Players                    |
+| Volets souvent injoignables (Delta)                            | la domotique de la box les a perdus : commandes tentées deux fois, une scène peut redémarrer la box |
+| Pas d'image de caméra                                          | vérifiez le flux dans Freebox OS ; l'image est rafraîchie chaque minute                             |
+| Pas d'appareil « Freebox Server » (installation déjà en place) | nouvel appareil : Découverte → Scanner, puis ajoutez-le                                             |
 
 Logs détaillés : définissez la variable d'environnement `DEBUG=gladys-integration-sdk` sur le conteneur.
 

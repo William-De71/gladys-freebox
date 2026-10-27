@@ -22,7 +22,7 @@ Mit dieser Integration steuern Sie Ihre **Freebox** aus Gladys Assistant heraus,
 - **Aktionen**: Koppeln, Verbindung testen, Freebox neu starten und Kopplung aufheben, direkt im Konfigurationsbildschirm.
 - **WLAN und Temperaturen**: Das Gerät **Freebox Server** trägt außerdem einen **WLAN-Schalter** (alle Zugangspunkte der Box) und die **Temperatursensoren** der Box.
 - **Dashboard-Widgets**: die Box auf einen Blick (Datenraten, Verkehrsverlauf, Temperatur, Schaltflächen für WLAN und Neustart), das **Anrufprotokoll** und die mit Ihrem Netzwerk **verbundenen Geräte**.
-- **Szenen**: ein Auslöser bei jedem **Telefonanruf** und bei jedem **Gerät, das sich mit Ihrem Netzwerk verbindet oder es verlässt**, sowie eine Aktion, um **einen Computer aufzuwecken** (Wake-on-LAN).
+- **Szenen**: ein Auslöser bei jedem **Telefonanruf** und bei jedem **Gerät, das sich mit Ihrem Netzwerk verbindet oder es verlässt**, ein Auslöser, wenn die Hausautomation **die Rollläden verliert oder wiederfindet**, eine Aktion, um **einen Computer aufzuwecken** (Wake-on-LAN), und eine Aktion, um **die Box neu zu starten**.
 
 ## Voraussetzungen
 
@@ -95,18 +95,32 @@ Fügen Sie sie im Dashboard-Editor hinzu (**Freebox** in der Liste der Integrati
 
 ## Szenen
 
-Die Integration fügt dem Szeneneditor in der Kategorie **Integrationen** zwei Auslöser und eine Aktion hinzu:
+Die Integration fügt dem Szeneneditor in der Kategorie **Integrationen** drei Auslöser und zwei Aktionen hinzu:
 
-| Element                                              | Filter                                                          | Variablen                                                                               |
-| ---------------------------------------------------- | --------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Auslöser **Freebox: Telefonanruf**                   | Anruftyp, Telefonnummer                                         | `call_type` (`missed`, `accepted`, `outgoing`), `number`, `name`, `duration` (Sekunden) |
-| Auslöser **Freebox: Gerät verbunden oder weg**       | Ereignis (`connected`, `disconnected`), MAC-Adresse, Gerätename | `event`, `mac`, `name`, `ip`, `connection` (`wifi`, `ethernet`), `vendor`               |
-| Aktion **Freebox: Computer aufwecken (Wake-on-LAN)** | MAC-Adresse                                                     | keine                                                                                   |
+| Element                                                   | Filter                                                          | Variablen                                                                               |
+| --------------------------------------------------------- | --------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Auslöser **Freebox: Telefonanruf**                        | Anruftyp, Telefonnummer                                         | `call_type` (`missed`, `accepted`, `outgoing`), `number`, `name`, `duration` (Sekunden) |
+| Auslöser **Freebox: Gerät verbunden oder weg**            | Ereignis (`connected`, `disconnected`), MAC-Adresse, Gerätename | `event`, `mac`, `name`, `ip`, `connection` (`wifi`, `ethernet`), `vendor`               |
+| Aktion **Freebox: Computer aufwecken (Wake-on-LAN)**      | MAC-Adresse                                                     | keine                                                                                   |
+| Auslöser **Freebox: Hausautomation verloren oder zurück** | Ereignis (`unreachable`, `reachable`)                           | `event`, `cause`, `count`, `names`, `minutes`                                           |
+| Aktion **Freebox: Box neu starten**                       | Mindestabstand (Minuten, standardmäßig 60)                      | keine                                                                                   |
 
 - Ein Anruf erscheint im Protokoll **erst nach seinem Ende**: Der Auslöser greift dann, nicht während es klingelt. Beispiel: verpasster Anruf → `Verpasster Anruf von {{triggerEvent.data.name}} ({{triggerEvent.data.number}})` senden.
 - Geben Sie die MAC-Adresse **in Großbuchstaben mit Doppelpunkten** ein (`AA:BB:CC:DD:EE:FF`), so wie das Widget **Netzwerkgeräte** sie anzeigt.
 - Nach einem Neustart der Integration wird nichts nachgeholt: Nur Anrufe und Bewegungen danach lösen eine Szene aus.
 - Wake-on-LAN weckt nur einen Computer, dessen Netzwerkkarte dafür eingerichtet ist (BIOS und System).
+
+## Nicht erreichbare Rollläden (Freebox Delta)
+
+Die Freebox Delta steuert io-homecontrol-Rollläden selbst, und ihre Hausautomation verliert sie manchmal: Die Freebox-App zeigt sie als nicht erreichbar an und sie reagieren nicht mehr, bis die Box neu gestartet wird. Die Integration kann die Box nicht reparieren, aber sie mildert das Problem und meldet es Ihnen:
+
+- **Jeder Rollladenbefehl wird zweimal versucht**, wenn die Box den ersten Versuch verwirft. Schlagen beide fehl, zeigt Gladys einen Fehler mit dem Hinweis auf einen Neustart.
+- Der Auslöser **Freebox: Hausautomation verloren oder zurück** greift **einmal** zu Beginn des Problems und **einmal**, wenn es vorbei ist. Er greift, wenn ein Rollladen eine Minute lang nicht erreichbar bleibt, wenn die Hausautomation der Box nicht mehr antwortet oder wenn ein Rollladenbefehl fehlschlägt. Variablen: `cause` (`devices_unreachable`, `home_not_responding`, `command_failed`), `count` und `names` (die betroffenen Rollläden) und `minutes` (Dauer des Ausfalls, bei der Rückkehr).
+- Die Aktion **Freebox: Box neu starten** startet sie aus einer Szene neu, nie zweimal innerhalb ihres **Mindestabstands** (standardmäßig 60 Minuten, mindestens 15), auch nach einem Neustart von Gladys.
+
+Beispielszene: Auslöser **Freebox: Hausautomation verloren oder zurück** mit dem Ereignis **Verloren** → Nachricht `Rollläden verloren ({{triggerEvent.data.names}}), Freebox wird neu gestartet` senden → Aktion **Freebox: Box neu starten**. Fügen Sie eine Zeitbedingung hinzu, wenn Internet, TV und Telefon abends nicht unterbrochen werden sollen.
+
+⚠️ Ein Neustart unterbricht Internet, TV und Telefon für einige Minuten und erfordert die Berechtigung **Änderung der Freebox-Einstellungen**. Nur die Rollläden zählen: Ein Sensor mit leerer Batterie löst ihn nie aus.
 
 ## Einschränkung Freebox Player POP / Android TV
 
@@ -129,3 +143,4 @@ Die Aktion **„Freebox neu starten“** im Konfigurationsbildschirm startet Ihr
 - **Das Widget Telefonanrufe verlangt eine Berechtigung**: Aktivieren Sie in Freebox OS **Zugriff auf das Anrufprotokoll** für Gladys Assistant; das Widget füllt sich innerhalb von 30 Sekunden.
 - **WLAN-Schalter abgelehnt**: Die Berechtigung „Änderung der Freebox-Einstellungen“ ist nicht aktiviert.
 - **Ein Gerät bleibt nach dem Gehen „verbunden“**: Die Freebox hält es einige Minuten nach seinem letzten Datenverkehr aktiv; der Auslöser greift, sobald die Box es als getrennt markiert.
+- **Rollläden oft nicht erreichbar**: siehe [Nicht erreichbare Rollläden](#nicht-erreichbare-rollläden-freebox-delta). Prüfen Sie auch den Standort des Freebox Servers: Sein io-homecontrol-Funkmodul sitzt im Gerät, und ein geschlossener Schrank oder ein Metallgehäuse verringert die Reichweite.

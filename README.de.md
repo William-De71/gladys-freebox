@@ -61,7 +61,8 @@ Benutzerdokumentation: [English](docs/en.md) · [Français](docs/fr.md) · [Deut
   **Telefonanrufe** (Anrufprotokoll, als gelesen markieren) und **Netzwerkgeräte** (verbunden oder weg, mit IP- und
   MAC-Adresse).
 - **Szenen**: Auslöser bei einem **Telefonanruf** und bei einem **Gerät, das sich mit dem Netzwerk verbindet oder es
-  verlässt**, sowie eine Aktion **Wake-on-LAN**.
+  verlässt**, ein Auslöser, wenn die Hausautomation **die Rollläden verliert oder wiederfindet**, sowie die Aktionen
+  **Wake-on-LAN** und **Box neu starten**.
 - **Konfigurationsaktionen**: koppeln, Verbindung testen, Freebox neu starten, Kopplung aufheben.
 - **Vier Sprachen** für den Konfigurationsbildschirm und die Ergebnisse der Aktionen: Englisch, Französisch,
   Deutsch, Spanisch.
@@ -105,7 +106,7 @@ sequenceDiagram
   I->>G: publishDiscoveredDevices
   U->>G: Gerät hinzufügen
   G->>I: Gerät angelegt
-  I->>F: home/tileset/{node} (oder Player-Status, Verbindung)
+  I->>F: home/tileset/all, geteilt von den Abfragen eines Takts (oder Player-Status, Verbindung)
   I->>G: aktuelle Zustände (danach nur noch Änderungen)
   U->>G: Rollladen schließen (Dashboard oder Szene)
   G->>I: setValue
@@ -199,13 +200,15 @@ und die erste Seite.
 
 ## Szenen
 
-Die Integration deklariert zwei Szenen-Auslöser und eine Szenen-Aktion (Kategorie **Integrationen** des Szenen-Editors):
+Die Integration deklariert drei Szenen-Auslöser und zwei Szenen-Aktionen (Kategorie **Integrationen** des Szenen-Editors):
 
-| Schlüssel                 | Art                                                               | Filter                                               | Variablen / Ausgaben                                 |
-| ------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------- |
-| `phone_call`              | Auslöser: ein Anruf ist ins Protokoll gekommen (nach seinem Ende) | `call_type` (Mehrfachauswahl), `number`              | `call_type`, `number`, `name`, `duration`            |
-| `network_device_presence` | Auslöser: ein Gerät hat sich verbunden oder ist weg               | `event` (`connected`, `disconnected`), `mac`, `name` | `event`, `mac`, `name`, `ip`, `connection`, `vendor` |
-| `wake_on_lan`             | Aktion: die Box sendet ein Wake-on-LAN-Paket                      | `mac` (Pflicht)                                      | keine                                                |
+| Schlüssel                 | Art                                                               | Filter                                                 | Variablen / Ausgaben                                 |
+| ------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------- |
+| `phone_call`              | Auslöser: ein Anruf ist ins Protokoll gekommen (nach seinem Ende) | `call_type` (Mehrfachauswahl), `number`                | `call_type`, `number`, `name`, `duration`            |
+| `network_device_presence` | Auslöser: ein Gerät hat sich verbunden oder ist weg               | `event` (`connected`, `disconnected`), `mac`, `name`   | `event`, `mac`, `name`, `ip`, `connection`, `vendor` |
+| `wake_on_lan`             | Aktion: die Box sendet ein Wake-on-LAN-Paket                      | `mac` (Pflicht)                                        | keine                                                |
+| `home_reachability`       | Auslöser: die Box hat ihre Rollläden verloren oder wiedergefunden | `event` (`unreachable`, `reachable`)                   | `event`, `cause`, `count`, `names`, `minutes`        |
+| `reboot`                  | Aktion: die Box neu starten, höchstens einmal pro Intervall       | `min_interval_minutes` (standardmäßig 60, 15 bis 1440) | keine                                                |
 
 Die erste Lesung nach einem Start dient als Ausgangsstand: Kein Anruf und keine Anwesenheitsänderung wird nachgeholt.
 Alle anderen Werte sind Gerätefunktionen und im Szenen-Editor von Gladys wie jede andere nutzbar.
@@ -280,16 +283,17 @@ flowchart LR
 
 ## Fehlerbehebung
 
-| Symptom                                                    | Wahrscheinliche Ursache                                                                 |
-| ---------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| „Freebox not found on the local network“                   | Gladys steht nicht hinter der Freebox, oder `mafreebox.freebox.fr` wird nicht aufgelöst |
-| Kopplung „not confirmed on the LCD screen“                 | die 55 Sekunden sind abgelaufen: neben die Box stellen und die Aktion erneut starten    |
-| Ein Gerät fehlt beim Scan                                  | seine Berechtigung ist in Freebox OS nicht aktiviert: aktivieren, dann erneut scannen   |
-| „Freebox session could not be opened“                      | die App wurde in Freebox OS entzogen: Kopplung aufheben, dann neu koppeln               |
-| Ein Player fehlt                                           | Player POP / Android TV: keine lokale API, die Integration überspringt ihn              |
-| Eine Fernbedienungstaste bewirkt nichts                    | undokumentierte `control/remote`-Taste, nicht von jeder Player-Firmware unterstützt     |
-| Kein Kamerabild                                            | den Stream in Freebox OS prüfen; das Bild wird jede Minute aktualisiert                 |
-| Kein Gerät „Freebox Server“ bei einer älteren Installation | neues Gerät: Entdecken → Scannen, dann hinzufügen                                       |
+| Symptom                                                    | Wahrscheinliche Ursache                                                                                           |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| „Freebox not found on the local network“                   | Gladys steht nicht hinter der Freebox, oder `mafreebox.freebox.fr` wird nicht aufgelöst                           |
+| Kopplung „not confirmed on the LCD screen“                 | die 55 Sekunden sind abgelaufen: neben die Box stellen und die Aktion erneut starten                              |
+| Ein Gerät fehlt beim Scan                                  | seine Berechtigung ist in Freebox OS nicht aktiviert: aktivieren, dann erneut scannen                             |
+| „Freebox session could not be opened“                      | die App wurde in Freebox OS entzogen: Kopplung aufheben, dann neu koppeln                                         |
+| Ein Player fehlt                                           | Player POP / Android TV: keine lokale API, die Integration überspringt ihn                                        |
+| Eine Fernbedienungstaste bewirkt nichts                    | undokumentierte `control/remote`-Taste, nicht von jeder Player-Firmware unterstützt                               |
+| Rollläden oft nicht erreichbar (Delta)                     | die Hausautomation der Box hat sie verloren: Befehle werden zweimal versucht, eine Szene kann die Box neu starten |
+| Kein Kamerabild                                            | den Stream in Freebox OS prüfen; das Bild wird jede Minute aktualisiert                                           |
+| Kein Gerät „Freebox Server“ bei einer älteren Installation | neues Gerät: Entdecken → Scannen, dann hinzufügen                                                                 |
 
 Ausführliche Logs: Setzen Sie die Umgebungsvariable `DEBUG=gladys-integration-sdk` am Container.
 

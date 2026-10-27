@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-// Scene trigger payloads and the Wake-on-LAN scene action.
+// Scene trigger payloads, the Wake-on-LAN and reboot scene actions.
 //
 // Event data is flat (at most 30 keys, scalar values, strings of at most
 // 1,000 characters). A field of a trigger filters on the data key of the same
@@ -14,11 +14,17 @@ import { normalizeMac } from './freebox/read.js';
 export const TRIGGERS = {
   PHONE_CALL: 'phone_call',
   NETWORK_DEVICE_PRESENCE: 'network_device_presence',
+  HOME_REACHABILITY: 'home_reachability',
 };
 
 export const SCENE_ACTIONS = {
   WAKE_ON_LAN: 'wake_on_lan',
+  REBOOT: 'reboot',
 };
+
+// A reboot cuts internet, TV and phone for a few minutes: a scene rebooting
+// the box on every alarm must not do it again before this many minutes.
+export const REBOOT_MIN_INTERVAL = { DEFAULT: 60, MIN: 15, MAX: 1440 };
 
 const MAX_STRING = 1000;
 const text = (value) => String(value ?? '').slice(0, MAX_STRING);
@@ -77,4 +83,48 @@ export function wakeOnLanMac(fields = {}) {
     throw new Error(`Wake-on-LAN: "${fields.mac ?? ''}" is not a MAC address`);
   }
   return mac;
+}
+
+/**
+ * The event of the home automation lost or back (see homeHealth.js).
+ * @param {{ event: string, cause: string, names: string[], minutes?: number }} change -
+ * A homeHealth.update() event.
+ * @returns {{ key: string, data: object }} The event.
+ * @example
+ * homeEvent({ event: 'unreachable', cause: 'devices_unreachable', names: ['Volet salon'] });
+ */
+export function homeEvent({ event, cause, names, minutes }) {
+  return {
+    key: TRIGGERS.HOME_REACHABILITY,
+    data: {
+      event,
+      cause,
+      count: names.length,
+      names: text(names.join(', ')),
+      minutes: minutes ?? 0,
+    },
+  };
+}
+
+/**
+ * Whether the reboot scene action may reboot the box now.
+ * @param {object} fields - The resolved fields (`min_interval_minutes`).
+ * @param {number|null} lastRebootAt - When the action last rebooted the box, in ms.
+ * @param {number} now - Now, in ms.
+ * @returns {{ allowed: boolean, minutesAgo: number|null, interval: number }} The verdict.
+ * @example
+ * rebootAllowed({ min_interval_minutes: 60 }, Date.now() - 600000, Date.now());
+ * // { allowed: false, minutesAgo: 10, interval: 60 }
+ */
+export function rebootAllowed(fields = {}, lastRebootAt, now) {
+  const raw = fields.min_interval_minutes;
+  const wanted = raw === null || raw === undefined || raw === '' ? NaN : Number(raw);
+  const interval = Number.isFinite(wanted)
+    ? Math.min(Math.max(Math.round(wanted), REBOOT_MIN_INTERVAL.MIN), REBOOT_MIN_INTERVAL.MAX)
+    : REBOOT_MIN_INTERVAL.DEFAULT;
+  if (!Number.isFinite(lastRebootAt)) {
+    return { allowed: true, minutesAgo: null, interval };
+  }
+  const minutesAgo = Math.floor((now - lastRebootAt) / 60000);
+  return { allowed: minutesAgo >= interval, minutesAgo, interval };
 }

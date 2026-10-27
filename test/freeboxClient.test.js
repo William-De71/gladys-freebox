@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { FreeboxClient } from '../src/freebox/FreeboxClient.js';
+import { FreeboxClient, TILESET_SHARE_MS } from '../src/freebox/FreeboxClient.js';
 
 /**
  * Build a client whose authenticated requests always answer the given payload,
@@ -160,4 +160,53 @@ test('loadConnectionStatus fails loudly on a refused or empty answer', async () 
     const client = clientAnswering(data);
     await assert.rejects(client.loadConnectionStatus('token'), /connection status unavailable/);
   }
+});
+
+test('the polls of one tick share a single /home/tileset/all reading', async () => {
+  const client = new FreeboxClient();
+  const paths = [];
+  client.authRequest = async (appToken, { path }) => {
+    paths.push(path);
+    return {
+      status: 200,
+      data: {
+        success: true,
+        result: [
+          { node_id: 12, data: [{ ep_id: 1, value: 42 }] },
+          { node_id: 21, data: [{ ep_id: 3, value: 100 }] },
+        ],
+      },
+    };
+  };
+  const [sensor, shutter] = await Promise.all([
+    client.loadNodeValues('token', 12),
+    client.loadNodeValues('token', '21'),
+  ]);
+  assert.deepEqual(sensor, [{ ep_id: 1, value: 42 }]);
+  assert.deepEqual(shutter, [{ ep_id: 3, value: 100 }]);
+  assert.deepEqual(await client.loadNodeValues('token', 99), []);
+  assert.deepEqual(paths, ['/home/tileset/all']);
+});
+
+test('the shared reading expires before the next tick, and a failure is not kept', async () => {
+  const client = new FreeboxClient();
+  let calls = 0;
+  let fail = true;
+  client.authRequest = async () => {
+    calls += 1;
+    if (fail) {
+      throw new Error('Freebox request timeout');
+    }
+    return { status: 200, data: { success: true, result: [] } };
+  };
+  let now = 1000;
+  const clock = () => now;
+  await assert.rejects(client.loadTileset('token', clock), /timeout/);
+  fail = false;
+  await client.loadTileset('token', clock);
+  await client.loadTileset('token', clock);
+  assert.equal(calls, 2);
+  now += TILESET_SHARE_MS;
+  await client.loadTileset('token', clock);
+  assert.equal(calls, 3);
 });

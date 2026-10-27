@@ -176,6 +176,26 @@ export function readHosts(hosts = []) {
   return [...byMac.values()];
 }
 
+/**
+ * Read the home nodes of the box: what the health of the home automation
+ * needs, nothing else.
+ * @param {Array<object>} nodes - FreeboxClient.loadHomeNodes().
+ * @returns {Array<{ id: number, name: string, category: string, status: string }>}
+ * The nodes; `category` and `status` lower case, empty when absent.
+ * @example
+ * readHomeNodes(await client.loadHomeNodes(appToken));
+ */
+export function readHomeNodes(nodes = []) {
+  return (Array.isArray(nodes) ? nodes : [])
+    .filter((node) => node && typeof node === 'object' && Number.isFinite(Number(node.id)))
+    .map((node) => ({
+      id: Number(node.id),
+      name: String(node.label || node.name || `Freebox ${node.id}`),
+      category: String(node.category || '').toLowerCase(),
+      status: String(node.status || '').toLowerCase(),
+    }));
+}
+
 // The call types of the Freebox log.
 export const CALL_TYPES = ['missed', 'accepted', 'outgoing'];
 

@@ -22,7 +22,7 @@ Esta integración le permite controlar su **Freebox** desde Gladys Assistant, di
 - **Acciones**: vincular, probar la conexión, reiniciar la Freebox y desvincular, directamente desde la pantalla de configuración.
 - **Wi-Fi y temperaturas**: el dispositivo **Freebox Server** también incluye un **interruptor de Wi-Fi** (todos los puntos de acceso de la box) y los **sensores de temperatura** de la box.
 - **Widgets del panel**: la box de un vistazo (velocidades, historial de tráfico, temperatura, botones de Wi-Fi y reinicio), el **registro de llamadas** y los **dispositivos conectados** a su red.
-- **Escenas**: un activador en cada **llamada telefónica** y en cada **dispositivo que se conecta a su red o la abandona**, y una acción para **despertar un ordenador** (Wake-on-LAN).
+- **Escenas**: un activador en cada **llamada telefónica** y en cada **dispositivo que se conecta a su red o la abandona**, un activador cuando la domótica **pierde o recupera las persianas**, una acción para **despertar un ordenador** (Wake-on-LAN) y una acción para **reiniciar la box**.
 
 ## Requisitos
 
@@ -95,18 +95,32 @@ Añádalos desde la edición del panel (**Freebox** en la lista de widgets de in
 
 ## Escenas
 
-La integración añade dos activadores y una acción al editor de escenas, en la categoría **Integraciones**:
+La integración añade tres activadores y dos acciones al editor de escenas, en la categoría **Integraciones**:
 
 | Elemento                                                 | Filtros                                                                     | Variables                                                                               |
 | -------------------------------------------------------- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
 | Activador **Freebox: llamada telefónica**                | tipo de llamada, número de teléfono                                         | `call_type` (`missed`, `accepted`, `outgoing`), `number`, `name`, `duration` (segundos) |
 | Activador **Freebox: dispositivo conectado o ido**       | evento (`connected`, `disconnected`), dirección MAC, nombre del dispositivo | `event`, `mac`, `name`, `ip`, `connection` (`wifi`, `ethernet`), `vendor`               |
 | Acción **Freebox: despertar un ordenador (Wake-on-LAN)** | dirección MAC                                                               | ninguna                                                                                 |
+| Activador **Freebox: domótica perdida o recuperada**     | evento (`unreachable`, `reachable`)                                         | `event`, `cause`, `count`, `names`, `minutes`                                           |
+| Acción **Freebox: reiniciar la box**                     | intervalo mínimo (minutos, 60 por defecto)                                  | ninguna                                                                                 |
 
 - Una llamada entra en el registro **una vez terminada**: el activador actúa en ese momento, no mientras suena. Ejemplo: llamada perdida → enviar `Llamada perdida de {{triggerEvent.data.name}} ({{triggerEvent.data.number}})`.
 - Escriba la dirección MAC **en mayúsculas y con dos puntos** (`AA:BB:CC:DD:EE:FF`), tal como la muestra el widget **Dispositivos de red**.
 - Tras reiniciar la integración no se repite nada: solo las llamadas y los movimientos posteriores disparan una escena.
 - Wake-on-LAN solo despierta un ordenador cuya tarjeta de red esté configurada para ello (BIOS y sistema).
+
+## Persianas inaccesibles (Freebox Delta)
+
+La Freebox Delta controla ella misma las persianas io-homecontrol, y su domótica a veces las pierde: la aplicación Freebox las muestra inaccesibles y dejan de responder, hasta que se reinicia la box. La integración no puede reparar la box, pero atenúa el problema y le avisa:
+
+- **Cada orden de persiana se intenta dos veces** cuando la box descarta el primer intento. Si ambos fallan, Gladys muestra un error que sugiere un reinicio.
+- El activador **Freebox: domótica perdida o recuperada** actúa **una vez** al empezar el problema y **una vez** cuando termina. Actúa cuando una persiana sigue inaccesible durante un minuto, cuando la domótica de la box deja de responder o cuando falla una orden de persiana. Variables: `cause` (`devices_unreachable`, `home_not_responding`, `command_failed`), `count` y `names` (las persianas afectadas) y `minutes` (duración de la avería, al recuperarse).
+- La acción **Freebox: reiniciar la box** la reinicia desde una escena, nunca dos veces dentro de su **intervalo mínimo** (60 minutos por defecto, 15 como mínimo), incluso tras un reinicio de Gladys.
+
+Ejemplo de escena: activador **Freebox: domótica perdida o recuperada** con el evento **Perdida** → enviar el mensaje `Persianas perdidas ({{triggerEvent.data.names}}), reiniciando la Freebox` → acción **Freebox: reiniciar la box**. Añada una condición horaria si no quiere cortar internet, la TV y el teléfono por la noche.
+
+⚠️ Un reinicio corta internet, la TV y el teléfono unos minutos, y requiere el permiso **Modificación de los ajustes de la Freebox**. Solo cuentan las persianas: un sensor con la pila agotada nunca lo activa.
 
 ## Limitación de los Freebox Player POP / Android TV
 
@@ -129,3 +143,4 @@ La acción **«Reiniciar la Freebox»** de la pantalla de configuración reinici
 - **El widget Llamadas telefónicas pide un permiso**: marque **Acceso al registro de llamadas** para Gladys Assistant en Freebox OS; el widget se rellena en 30 segundos.
 - **Interruptor de Wi-Fi rechazado**: el permiso «Modificación de los ajustes de la Freebox» no está marcado.
 - **Un dispositivo sigue «conectado» tras irse**: la Freebox lo mantiene activo unos minutos después de su último tráfico; el activador actúa en cuanto la box lo marca como ido.
+- **Persianas a menudo inaccesibles**: vea [Persianas inaccesibles](#persianas-inaccesibles-freebox-delta). Compruebe también dónde está el Freebox Server: su radio io-homecontrol está dentro, y un mueble cerrado o un rack metálico reduce su alcance.

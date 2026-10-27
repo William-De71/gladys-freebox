@@ -60,7 +60,8 @@ Documentación de usuario: [English](docs/en.md) · [Français](docs/fr.md) · [
   **Llamadas telefónicas** (registro de llamadas, marcar como leídas) y **Dispositivos de red** (conectados o idos,
   con direcciones IP y MAC).
 - **Escenas**: activadores en una **llamada telefónica** y en un **dispositivo que se conecta a la red o la
-  abandona**, y una acción **Wake-on-LAN**.
+  abandona**, un activador cuando la domótica **pierde o recupera las persianas**, y las acciones **Wake-on-LAN** y
+  **reiniciar la box**.
 - **Acciones de configuración**: vincular, probar la conexión, reiniciar la Freebox, desvincular.
 - **Cuatro idiomas** para la pantalla de configuración y los resultados de las acciones: inglés, francés, alemán,
   español.
@@ -104,7 +105,7 @@ sequenceDiagram
   I->>G: publishDiscoveredDevices
   U->>G: Añadir un dispositivo
   G->>I: dispositivo creado
-  I->>F: home/tileset/{node} (o estado del player, conexión)
+  I->>F: home/tileset/all, compartido por los polls de un ciclo (o estado del player, conexión)
   I->>G: estados actuales (después, solo los cambios)
   U->>G: Cerrar la persiana (panel o escena)
   G->>I: setValue
@@ -197,13 +198,15 @@ ajustes se mueven juntos. Sin tocarlo durante 5 minutos, la tarjeta vuelve al gr
 
 ## Escenas
 
-La integración declara dos activadores y una acción de escena (categoría **Integraciones** del editor de escenas):
+La integración declara tres activadores y dos acciones de escena (categoría **Integraciones** del editor de escenas):
 
-| Clave                     | Tipo                                                            | Filtros                                              | Variables / salidas                                  |
-| ------------------------- | --------------------------------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------- |
-| `phone_call`              | activador: una llamada entró en el registro (una vez terminada) | `call_type` (selección múltiple), `number`           | `call_type`, `number`, `name`, `duration`            |
-| `network_device_presence` | activador: un dispositivo se conectó o se fue                   | `event` (`connected`, `disconnected`), `mac`, `name` | `event`, `mac`, `name`, `ip`, `connection`, `vendor` |
-| `wake_on_lan`             | acción: la box envía un paquete Wake-on-LAN                     | `mac` (obligatorio)                                  | ninguna                                              |
+| Clave                     | Tipo                                                            | Filtros                                               | Variables / salidas                                  |
+| ------------------------- | --------------------------------------------------------------- | ----------------------------------------------------- | ---------------------------------------------------- |
+| `phone_call`              | activador: una llamada entró en el registro (una vez terminada) | `call_type` (selección múltiple), `number`            | `call_type`, `number`, `name`, `duration`            |
+| `network_device_presence` | activador: un dispositivo se conectó o se fue                   | `event` (`connected`, `disconnected`), `mac`, `name`  | `event`, `mac`, `name`, `ip`, `connection`, `vendor` |
+| `wake_on_lan`             | acción: la box envía un paquete Wake-on-LAN                     | `mac` (obligatorio)                                   | ninguna                                              |
+| `home_reachability`       | activador: la box perdió sus persianas, o las recuperó          | `event` (`unreachable`, `reachable`)                  | `event`, `cause`, `count`, `names`, `minutes`        |
+| `reboot`                  | acción: reiniciar la box, como mucho una vez por intervalo      | `min_interval_minutes` (60 por defecto, de 15 a 1440) | ninguna                                              |
 
 La primera lectura tras un arranque sirve de referencia: no se repite ninguna llamada ni cambio de presencia. Los
 demás valores son funciones de dispositivo, utilizables en el editor de escenas de Gladys como cualquier otra.
@@ -279,16 +282,17 @@ flowchart LR
 
 ## Solución de problemas
 
-| Síntoma                                                 | Causa probable                                                                       |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| «Freebox not found on the local network»                | Gladys no está detrás de la Freebox, o `mafreebox.freebox.fr` no se resuelve         |
-| Vinculación «not confirmed on the LCD screen»           | pasaron los 55 segundos: colóquese junto a la caja y vuelva a lanzar la acción       |
-| Falta un dispositivo en la búsqueda                     | su permiso no está activado en Freebox OS: actívelo y vuelva a buscar                |
-| «Freebox session could not be opened»                   | la aplicación se revocó en Freebox OS: desvincule y vuelva a vincular                |
-| Falta un Player                                         | Player POP / Android TV: sin API local, la integración lo omite                      |
-| Una tecla del mando no hace nada                        | tecla `control/remote` no documentada, no admitida por todos los firmwares de Player |
-| No hay imagen de cámara                                 | compruebe el flujo en Freebox OS; la imagen se actualiza cada minuto                 |
-| No aparece «Freebox Server» en una instalación anterior | dispositivo nuevo: Descubrir → Buscar, y luego añádalo                               |
+| Síntoma                                                 | Causa probable                                                                                    |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| «Freebox not found on the local network»                | Gladys no está detrás de la Freebox, o `mafreebox.freebox.fr` no se resuelve                      |
+| Vinculación «not confirmed on the LCD screen»           | pasaron los 55 segundos: colóquese junto a la caja y vuelva a lanzar la acción                    |
+| Falta un dispositivo en la búsqueda                     | su permiso no está activado en Freebox OS: actívelo y vuelva a buscar                             |
+| «Freebox session could not be opened»                   | la aplicación se revocó en Freebox OS: desvincule y vuelva a vincular                             |
+| Falta un Player                                         | Player POP / Android TV: sin API local, la integración lo omite                                   |
+| Una tecla del mando no hace nada                        | tecla `control/remote` no documentada, no admitida por todos los firmwares de Player              |
+| Persianas a menudo inaccesibles (Delta)                 | la domótica de la box las perdió: órdenes intentadas dos veces, una escena puede reiniciar la box |
+| No hay imagen de cámara                                 | compruebe el flujo en Freebox OS; la imagen se actualiza cada minuto                              |
+| No aparece «Freebox Server» en una instalación anterior | dispositivo nuevo: Descubrir → Buscar, y luego añádalo                                            |
 
 Logs detallados: defina la variable de entorno `DEBUG=gladys-integration-sdk` en el contenedor.
 

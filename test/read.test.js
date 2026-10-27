@@ -9,6 +9,7 @@ import {
   normalizeMac,
   sensorId,
   hottest,
+  readHomeNodes,
 } from '../src/freebox/read.js';
 import {
   SAMPLE_SYSTEM,
@@ -136,4 +137,20 @@ test('readNetHistory converts to Mbit/s and stays under the chart bounds', () =>
     up: [{ t: new Date(NOW_S * 1000).toISOString(), v: 0 }],
   });
   assert.deepEqual(readNetHistory(null), { down: [], up: [] });
+});
+
+test('readHomeNodes keeps the name, category and state of each node', () => {
+  assert.deepEqual(
+    readHomeNodes([
+      { id: 21, label: 'Volet salon', name: 'node_21', category: 'shutter', status: 'unreachable' },
+      { id: 4, name: 'pir_4', category: 'PIR', status: 'ACTIVE' },
+      { id: 'x', label: 'broken' },
+      null,
+    ]),
+    [
+      { id: 21, name: 'Volet salon', category: 'shutter', status: 'unreachable' },
+      { id: 4, name: 'pir_4', category: 'pir', status: 'active' },
+    ],
+  );
+  assert.deepEqual(readHomeNodes({ unexpected: true }), []);
 });

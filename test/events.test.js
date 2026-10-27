@@ -2,7 +2,16 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { TRIGGERS, SCENE_ACTIONS, callEvent, presenceEvent, wakeOnLanMac } from '../src/events.js';
+import {
+  TRIGGERS,
+  SCENE_ACTIONS,
+  REBOOT_MIN_INTERVAL,
+  callEvent,
+  presenceEvent,
+  homeEvent,
+  rebootAllowed,
+  wakeOnLanMac,
+} from '../src/events.js';
 import { readHosts, readCalls, CALL_TYPES } from '../src/freebox/read.js';
 import { SAMPLE_HOSTS, SAMPLE_CALLS } from './helpers/network.js';
 
@@ -106,5 +115,68 @@ test('the Wake-on-LAN action declares only its MAC address, required', () => {
     action.fields.map((field) => [field.key, field.type, field.required]),
     [['mac', 'string', true]],
   );
+  assert.ok(action.timeout_seconds >= 5 && action.timeout_seconds <= 120);
+});
+
+test('a home event names the shutters lost, and the outage length once back', () => {
+  const lost = homeEvent({
+    event: 'unreachable',
+    cause: 'devices_unreachable',
+    names: ['Volet salon', 'Volet chambre'],
+  });
+  assert.deepEqual(lost, {
+    key: 'home_reachability',
+    data: {
+      event: 'unreachable',
+      cause: 'devices_unreachable',
+      count: 2,
+      names: 'Volet salon, Volet chambre',
+      minutes: 0,
+    },
+  });
+  assertFits(lost);
+  const back = homeEvent({
+    event: 'reachable',
+    cause: 'home_not_responding',
+    names: [],
+    minutes: 7,
+  });
+  assert.equal(back.data.minutes, 7);
+  assertFits(back);
+  const field = trigger('home_reachability').fields.find((entry) => entry.key === 'event');
+  assert.deepEqual(
+    field.options.map((option) => option.value),
+    ['unreachable', 'reachable'],
+  );
+});
+
+test('the reboot action waits its minimum interval between two reboots', () => {
+  const now = 10 * 3600000;
+  assert.deepEqual(rebootAllowed({}, null, now), {
+    allowed: true,
+    minutesAgo: null,
+    interval: REBOOT_MIN_INTERVAL.DEFAULT,
+  });
+  assert.deepEqual(rebootAllowed({ min_interval_minutes: 60 }, now - 10 * 60000, now), {
+    allowed: false,
+    minutesAgo: 10,
+    interval: 60,
+  });
+  assert.equal(rebootAllowed({ min_interval_minutes: 60 }, now - 61 * 60000, now).allowed, true);
+  // Out of bounds: clamped, never a reboot loop every minute.
+  assert.equal(rebootAllowed({ min_interval_minutes: 1 }, null, now).interval, 15);
+  assert.equal(rebootAllowed({ min_interval_minutes: null }, null, now).interval, 60);
+});
+
+test('the reboot action declares its optional interval, within the bounds of the code', () => {
+  const action = manifest.scene_actions.find((entry) => entry.key === 'reboot');
+  assert.deepEqual(
+    action.fields.map((field) => [field.key, field.type, field.required]),
+    [['min_interval_minutes', 'number', false]],
+  );
+  const [field] = action.fields;
+  assert.equal(field.default, REBOOT_MIN_INTERVAL.DEFAULT);
+  assert.equal(field.min, REBOOT_MIN_INTERVAL.MIN);
+  assert.equal(field.max, REBOOT_MIN_INTERVAL.MAX);
   assert.ok(action.timeout_seconds >= 5 && action.timeout_seconds <= 120);
 });

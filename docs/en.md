@@ -22,7 +22,7 @@ This integration lets you control your **Freebox** from Gladys Assistant, direct
 - **Actions**: pair, test the connection, reboot the Freebox and unpair, right from the configuration screen.
 - **Wi-Fi and temperatures**: the **Freebox Server** device also carries a **Wi-Fi switch** (every access point of the box) and the **temperature sensors** of the box.
 - **Dashboard widgets**: the box at a glance (rates, traffic history, temperature, Wi-Fi and reboot buttons), the **call log** and the **devices connected** to your network.
-- **Scenes**: a trigger on each **phone call** and on each **device that connects to or leaves** your network, and an action to **wake a computer** (Wake-on-LAN).
+- **Scenes**: a trigger on each **phone call** and on each **device that connects to or leaves** your network, a trigger when the home automation **loses or gets back the roller shutters**, an action to **wake a computer** (Wake-on-LAN) and an action to **reboot the box**.
 
 ## Requirements
 
@@ -95,18 +95,32 @@ Add them from the dashboard editor (**Freebox** in the list of integration widge
 
 ## Scenes
 
-The integration adds two triggers and one action to the scene editor, in the **Integrations** category:
+The integration adds three triggers and two actions to the scene editor, in the **Integrations** category:
 
 | Element                                           | Filters                                                       | Variables                                                                              |
 | ------------------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
 | Trigger **Freebox: phone call**                   | call type, phone number                                       | `call_type` (`missed`, `accepted`, `outgoing`), `number`, `name`, `duration` (seconds) |
 | Trigger **Freebox: device connected or gone**     | event (`connected`, `disconnected`), MAC address, device name | `event`, `mac`, `name`, `ip`, `connection` (`wifi`, `ethernet`), `vendor`              |
 | Action **Freebox: wake a computer (Wake-on-LAN)** | MAC address                                                   | none                                                                                   |
+| Trigger **Freebox: home automation lost or back** | event (`unreachable`, `reachable`)                            | `event`, `cause`, `count`, `names`, `minutes`                                          |
+| Action **Freebox: reboot the box**                | minimum interval (minutes, 60 by default)                     | none                                                                                   |
 
 - A call reaches the log **once it has ended**: the trigger fires then, not while the phone rings. Example: a missed call → send `Missed call from {{triggerEvent.data.name}} ({{triggerEvent.data.number}})`.
 - Type the MAC address in **upper case with colons** (`AA:BB:CC:DD:EE:FF`), as the **Network devices** widget shows it.
 - After a restart of the integration, nothing is replayed: only the calls and the movements that happen afterwards fire a trigger.
 - Wake-on-LAN only wakes a computer whose network card is set up for it (BIOS and system).
+
+## Unreachable shutters (Freebox Delta)
+
+The Freebox Delta drives io-homecontrol shutters itself, and its home system sometimes loses them: the Freebox app shows them as unreachable and they no longer respond, until the box is rebooted. The integration cannot fix the box, but it softens the problem and tells you about it:
+
+- **Every shutter command is tried twice** when the box drops the first attempt. When both fail, Gladys shows an error that suggests a reboot.
+- The trigger **Freebox: home automation lost or back** fires **once** when the problem starts and **once** when it is over. It starts when a shutter stays unreachable for one minute, when the home system of the box stops answering, or when a shutter command fails. Variables: `cause` (`devices_unreachable`, `home_not_responding`, `command_failed`), `count` and `names` (the shutters concerned), and `minutes` (length of the outage, when it is over).
+- The action **Freebox: reboot the box** reboots it from a scene, never twice within its **minimum interval** (60 minutes by default, 15 minimum), even after a restart of Gladys.
+
+Example of a scene: trigger **Freebox: home automation lost or back** with the event **Lost** → send a message `Shutters lost ({{triggerEvent.data.names}}), rebooting the Freebox` → action **Freebox: reboot the box**. Add a time condition if you do not want the internet, TV and phone cut during the evening.
+
+⚠️ A reboot cuts internet, TV and phone for a few minutes, and needs the **Freebox settings modification** permission. Only the shutters count: a sensor whose battery is flat never triggers it.
 
 ## Freebox Player POP / Android TV limitation
 
@@ -129,3 +143,4 @@ The **"Reboot the Freebox"** action on the configuration screen restarts your Fr
 - **The Phone calls widget asks for a permission**: tick **Call log access** for Gladys Assistant in Freebox OS; the widget fills within 30 seconds.
 - **Wi-Fi switch refused**: the "Freebox settings modification" permission is not ticked.
 - **A device stays "connected" after leaving**: the Freebox keeps it active for a few minutes after its last traffic; the trigger fires once the box marks it gone.
+- **Shutters often unreachable**: see [Unreachable shutters](#unreachable-shutters-freebox-delta). Also check where the Freebox Server sits: its io-homecontrol radio is inside, and a closed cabinet or a metal rack shortens its range.

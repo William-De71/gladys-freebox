@@ -8,8 +8,9 @@
 //   3. exposes the manifest actions (pair / test / reboot / unpair);
 //   4. publishes the discovered devices once connected and paired;
 //   5. serves the dashboard widgets (box, calls, network), fires the scene
-//      triggers (phone call, network device presence) from the watch loop
-//      (src/watcher.js) and runs the Wake-on-LAN scene action.
+//      triggers (phone call, network device presence, home automation lost or
+//      back) from the watch loop (src/watcher.js) and runs the Wake-on-LAN and
+//      reboot scene actions.
 //
 // Pairing model: the Freebox app token is obtained through the "Pair with the
 // Freebox" manifest action (the user confirms on the box LCD screen), then
@@ -17,9 +18,17 @@
 // config_schema (APP_TOKEN_CONFIG_KEY). It is reloaded on every connection.
 // -----------------------------------------------------------------------------
 
-import { GladysIntegration, logger } from '@gladysassistant/integration-sdk';
+import {
+  GladysIntegration,
+  logger,
+  DEVICE_FEATURE_CATEGORIES,
+} from '@gladysassistant/integration-sdk';
 import { FreeboxClient } from './src/freebox/FreeboxClient.js';
-import { APP_TOKEN_CONFIG_KEY, SERVER } from './src/freebox/constants.js';
+import {
+  APP_TOKEN_CONFIG_KEY,
+  LAST_SCENE_REBOOT_CONFIG_KEY,
+  SERVER,
+} from './src/freebox/constants.js';
 import { readSystem, readNetHistory } from './src/freebox/read.js';
 import {
   buildDiscoveredDevices,
@@ -47,7 +56,15 @@ import {
   buildNetworkWidget,
 } from './src/widgets.js';
 import { createViewStore } from './src/widgetViews.js';
-import { SCENE_ACTIONS, callEvent, presenceEvent, wakeOnLanMac } from './src/events.js';
+import {
+  SCENE_ACTIONS,
+  callEvent,
+  presenceEvent,
+  homeEvent,
+  rebootAllowed,
+  wakeOnLanMac,
+} from './src/events.js';
+import { createHomeHealth } from './src/homeHealth.js';
 import { t, all } from './src/i18n.js';
 
 const gladys = new GladysIntegration();
@@ -55,6 +72,9 @@ const client = new FreeboxClient();
 
 // How far back the box chart looks, which page the network list shows.
 const views = createViewStore();
+
+// Whether the home automation of the box still reaches the shutters.
+const health = createHomeHealth();
 
 // Cleanup function of the periodic camera-image push loop.
 let stopCameraPush = null;
@@ -87,7 +107,7 @@ const watcher = createWatcher({
   client,
   getAppToken,
   logger,
-  onRound: async ({ presence, calls, hostsChanged, callsChanged }) => {
+  onRound: async ({ presence, calls, hostsChanged, callsChanged, home }) => {
     for (const call of calls) {
       logger.info(`Freebox: new ${call.type} call in the log`);
       await fire(callEvent(call));
@@ -95,6 +115,18 @@ const watcher = createWatcher({
     for (const change of presence) {
       logger.debug(`Freebox: "${change.host.name}" ${change.event}`);
       await fire(presenceEvent(change));
+    }
+    const change = health.update(home);
+    if (change) {
+      if (change.event === 'unreachable') {
+        logger.warn(
+          `Freebox home automation in trouble (${change.cause})` +
+            `${change.names.length > 0 ? `: ${change.names.join(', ')}` : ''}`,
+        );
+      } else {
+        logger.info(`Freebox home automation back after ${change.minutes} min`);
+      }
+      await fire(homeEvent(change));
     }
     if (hostsChanged) {
       gladys.requestWidgetRefresh(WIDGETS.NETWORK);
@@ -168,7 +200,22 @@ gladys.onSetValue(async (device, feature, value) => {
   if (!appToken) {
     throw new Error('Freebox is not paired');
   }
-  await setDeviceValue(gladys, client, appToken, device, feature, value);
+  // The outcome of a shutter command tells whether the box still reaches it.
+  const isShutter = feature.category === DEVICE_FEATURE_CATEGORIES.SHUTTER;
+  // The core sends the device without its name: the SDK cache has it.
+  const known = (gladys.devices || []).find((d) => d.external_id === device.external_id);
+  const name = device.name || (known && known.name) || forLog(gladys, device.external_id);
+  try {
+    await setDeviceValue(gladys, client, appToken, device, feature, value);
+  } catch (e) {
+    if (isShutter) {
+      health.commandResult(false, name);
+    }
+    throw e;
+  }
+  if (isShutter) {
+    health.commandResult(true, name);
+  }
 });
 
 // --- Polling: Gladys asks to refresh a device --------------------------------
@@ -292,6 +339,7 @@ gladys.onAction('unpair', async () => {
   await gladys.setConfig({ [APP_TOKEN_CONFIG_KEY]: '' });
   client.reset();
   watcher.reset();
+  health.reset();
   await gladys.setConnectionStatus(false).catch(() => {});
   return MESSAGES.unpaired;
 });
@@ -450,6 +498,42 @@ gladys.onSceneAction(SCENE_ACTIONS.WAKE_ON_LAN, async (fields) => {
   const host = (watcher.snapshot().hosts || []).find((entry) => entry.mac === mac);
   logger.info(`Scene -> Wake-on-LAN ${mac}`);
   await client.wakeOnLan(appToken, mac, host ? host.interface : undefined);
+});
+
+// --- Scene action: reboot the box --------------------------------------------
+// Meant for a scene reacting to the home automation lost: the reboot is what
+// brings the shutters back. The time of the last reboot is kept in the config,
+// so a restart of the integration does not lift the minimum interval.
+gladys.onSceneAction(SCENE_ACTIONS.REBOOT, async (fields) => {
+  const appToken = await getAppToken();
+  if (!appToken) {
+    throw new Error('Freebox is not paired');
+  }
+  const config = (await gladys.getConfig()) || {};
+  const last = Number(config[LAST_SCENE_REBOOT_CONFIG_KEY]);
+  const verdict = rebootAllowed(fields, last > 0 ? last : null, Date.now());
+  if (!verdict.allowed) {
+    throw new Error(
+      `Freebox not rebooted: the scene already rebooted it ${verdict.minutesAgo} min ago ` +
+        `(minimum interval ${verdict.interval} min)`,
+    );
+  }
+  logger.info('Scene -> rebooting the Freebox');
+  try {
+    await client.reboot(appToken);
+  } catch (e) {
+    if (e.code === 'insufficient_rights') {
+      throw new Error(
+        'Freebox refused the reboot: tick the "Freebox settings modification" ' +
+          'permission of Gladys Assistant in Freebox OS',
+        { cause: e },
+      );
+    }
+    throw e;
+  }
+  await gladys
+    .setConfig({ [LAST_SCENE_REBOOT_CONFIG_KEY]: String(Date.now()) })
+    .catch((e) => logger.warn(`Freebox: unable to remember the reboot time: ${e.message}`));
 });
 
 // --- Configuration updated by the user ---------------------------------------

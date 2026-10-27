@@ -570,3 +570,48 @@ test('an unmanaged player feature type is reported', async () => {
     /is not managed/,
   );
 });
+
+test('a home write the box drops is tried once more, with a short timeout', async () => {
+  const attempts = [];
+  const client = {
+    setEndpointValue: async (appToken, nodeId, endpointId, value, options) => {
+      attempts.push(options);
+      if (attempts.length === 1) {
+        throw new Error('Freebox request timeout after 1800ms');
+      }
+    },
+  };
+  await setDeviceValue(
+    gladys,
+    client,
+    'token',
+    shutterDevice,
+    shutterStateFeature,
+    COVER_STATE.CLOSE,
+    { retryDelayMs: 0 },
+  );
+  assert.equal(attempts.length, 2);
+  assert.ok(attempts.every((options) => options.timeout > 0 && options.timeout < 2500));
+});
+
+test('a home write refused twice fails with a hint about the reboot', async () => {
+  let attempts = 0;
+  const client = {
+    setEndpointValue: async () => {
+      attempts += 1;
+      throw new Error('Freebox refused the write on 21/3: node unreachable');
+    },
+  };
+  await assert.rejects(
+    setDeviceValue(gladys, client, 'token', shutterDevice, shutterStateFeature, COVER_STATE.OPEN, {
+      retryDelayMs: 0,
+    }),
+    (e) => {
+      assert.match(e.message, /after 2 attempts/);
+      assert.match(e.message, /node unreachable/);
+      assert.match(e.message, /rebooting the Freebox/);
+      return true;
+    },
+  );
+  assert.equal(attempts, 2);
+});

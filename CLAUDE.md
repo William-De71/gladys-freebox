@@ -13,8 +13,9 @@ batteries, roller shutters, alarm panel and keyfob), Freebox Players (power,
 volume, channels, media, remote keys), cameras (ffmpeg snapshots of the HLS
 stream), the internet connection of the box (state, download and upload
 rates), its Wi-Fi switch and temperature sensors, three dashboard widgets
-(box, calls, network), two scene triggers (phone call, network device
-presence) and a Wake-on-LAN scene action. A Node.js service (Node 22+,
+(box, calls, network), three scene triggers (phone call, network device
+presence, home automation lost or back) and two scene actions (Wake-on-LAN,
+reboot). A Node.js service (Node 22+,
 ESM, no build step) that runs in its own sandboxed Docker container and talks
 to Gladys through
 [`@gladysassistant/integration-sdk`](https://github.com/GladysAssistant/integration-sdk-js).
@@ -41,9 +42,10 @@ src/devices.js               discovery / poll / setValue / camera push
 src/externalId.js            `ext:<selector>:` prefix, added and stripped
 src/messages.js              messages of the manifest actions, in en / fr / de / es
 src/i18n.js                  widget texts and toasts, in en / fr / de / es
-src/watcher.js               30 s loop: LAN hosts and call log snapshots
+src/watcher.js               30 s loop: LAN hosts, call log and home node snapshots
 src/tracker.js               snapshots -> trigger transitions (pure logic)
-src/events.js                scene trigger payloads, Wake-on-LAN fields
+src/homeHealth.js            home nodes + shutter commands -> lost/back episodes
+src/events.js                scene trigger payloads, Wake-on-LAN and reboot fields
 src/widgets.js               box, calls and network widget contents (pure)
 src/widgetViews.js           chart offset and list page per widget settings
 src/freebox/FreeboxClient.js discovery, pairing, shared session, requests
@@ -93,6 +95,13 @@ docs/illustrations/          generated widget images (render.sh, gen.mjs, render
   Trigger data stays raw (`missed`, `connected`): the core sends no language
   with an event. No trigger reports what Gladys did itself (the Wi-Fi switch
   has none), but turning the Wi-Fi off does make the Wi-Fi hosts leave.
+- **Home automation health.** One `home_reachability` event per episode, never
+  one per reading: a shutter lost two readings in a row, a silent home API
+  (only on a box where shutters were seen) or a failed shutter command opens
+  it; a reading with every shutter back and no failed command closes it. A
+  rebooting box (nothing answers) changes nothing. The reboot scene action
+  keeps its last run in the config (`last_scene_reboot_at`) and never runs
+  twice within its minimum interval: a scene must not reboot-loop the box.
 - **Permissions.** Reading the settings, the system state, the Wi-Fi state
   and the LAN hosts is open to every paired app; switching the Wi-Fi and
   rebooting need "Freebox settings modification", the call log needs "Call

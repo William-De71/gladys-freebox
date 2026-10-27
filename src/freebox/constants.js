@@ -20,6 +20,11 @@ export const APP_IDENTITY = {
 // gladys.setConfig(), reloaded through gladys.getConfig() on every connection.
 export const APP_TOKEN_CONFIG_KEY = 'app_token';
 
+// Config key (NOT declared in config_schema either) keeping when the reboot
+// scene action last rebooted the box, in ms: its minimum interval survives a
+// restart of the integration.
+export const LAST_SCENE_REBOOT_CONFIG_KEY = 'last_scene_reboot_at';
+
 // Freebox Player (set-top box) constants. Players expose their own API,
 // versioned independently: /player/{id}/api/{version}/...
 export const PLAYER = {
