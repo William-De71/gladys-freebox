@@ -5,6 +5,12 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions
 follow [Semantic Versioning](https://semver.org/). This file is generated at
 each release from the Conventional Commits: do not edit it by hand.
 
+## [1.7.0] - 2026-10-27
+
+### Added
+
+- retry home commands, detect unreachable shutters and reboot the box from a scene ([dbba299](https://github.com/William-De71/gladys-freebox/commit/dbba299f7935aaba5b94d6d44287a556e26e33a5))
+
 ## [1.6.0] - 2026-10-25
 
 ### Added
@@ -109,6 +115,7 @@ each release from the Conventional Commits: do not edit it by hand.
 
 ## 1.0.0 (2026-07-24)
 
+[1.7.0]: https://github.com/William-De71/gladys-freebox/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/William-De71/gladys-freebox/compare/v1.5.1...v1.6.0
 [1.5.1]: https://github.com/William-De71/gladys-freebox/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/William-De71/gladys-freebox/compare/v1.4.0...v1.5.0
