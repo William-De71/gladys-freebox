@@ -22,6 +22,7 @@ import {
   GladysIntegration,
   logger,
   DEVICE_FEATURE_CATEGORIES,
+  DEVICE_FEATURE_TYPES,
 } from '@gladysassistant/integration-sdk';
 import { FreeboxClient } from './src/freebox/FreeboxClient.js';
 import {
@@ -38,7 +39,8 @@ import {
   getDeviceImage,
   startCameraPush,
 } from './src/devices.js';
-import { forLog, toExternalId } from './src/externalId.js';
+import { forLog, toExternalId, toNativeId } from './src/externalId.js';
+import { COVER_STATE } from './src/freebox/deviceMapping.js';
 import { MESSAGES } from './src/messages.js';
 import { createWatcher } from './src/watcher.js';
 import {
@@ -65,6 +67,7 @@ import {
   wakeOnLanMac,
 } from './src/events.js';
 import { createHomeHealth } from './src/homeHealth.js';
+import { createShutterCheck } from './src/shutterCheck.js';
 import { t, all } from './src/i18n.js';
 
 const gladys = new GladysIntegration();
@@ -75,6 +78,34 @@ const views = createViewStore();
 
 // Whether the home automation of the box still reaches the shutters.
 const health = createHomeHealth();
+
+// Whether a shutter reached the position it was sent to: on a box that accepts
+// every command, the only sign that its home automation lost the shutters.
+const shutterCheck = createShutterCheck({
+  logger,
+  readPosition: async (nodeId, endpointId) => {
+    const appToken = await getAppToken();
+    if (!appToken) {
+      return null;
+    }
+    const endpoints = await client.loadNodeValues(appToken, nodeId);
+    const endpoint = endpoints.find((e) => String(e.ep_id) === String(endpointId));
+    const position = endpoint ? parseInt(endpoint.value, 10) : NaN;
+    return Number.isFinite(position) ? position : null;
+  },
+  onResult: ({ ok, name, position, target }) => {
+    // Logged in the Gladys scale (100 = open), the one the user sees.
+    if (ok) {
+      logger.debug(`Freebox: "${name}" reached ${100 - target}% open`);
+    } else {
+      logger.warn(
+        `Freebox: "${name}" did not move as asked: ${100 - position}% open, ` +
+          `${100 - target}% expected`,
+      );
+    }
+    health.moveResult(ok, name);
+  },
+});
 
 // Cleanup function of the periodic camera-image push loop.
 let stopCameraPush = null;
@@ -205,8 +236,13 @@ gladys.onSetValue(async (device, feature, value) => {
   // The core sends the device without its name: the SDK cache has it.
   const known = (gladys.devices || []).find((d) => d.external_id === device.external_id);
   const name = device.name || (known && known.name) || forLog(gladys, device.external_id);
+  // A newer command (stop included) makes the check of the previous one moot.
+  if (isShutter) {
+    shutterCheck.cancel(toNativeId(gladys, feature.external_id).split(':')[1]);
+  }
+  let move;
   try {
-    await setDeviceValue(gladys, client, appToken, device, feature, value);
+    move = await setDeviceValue(gladys, client, appToken, device, feature, value);
   } catch (e) {
     if (isShutter) {
       health.commandResult(false, name);
@@ -214,7 +250,14 @@ gladys.onSetValue(async (device, feature, value) => {
     throw e;
   }
   if (isShutter) {
-    health.commandResult(true, name);
+    const isStop =
+      feature.type === DEVICE_FEATURE_TYPES.SHUTTER.STATE && Number(value) === COVER_STATE.STOP;
+    if (move) {
+      // Accepted is not applied: the position tells, in a while.
+      shutterCheck.watch({ ...move, name });
+    } else if (!isStop) {
+      health.commandResult(true, name);
+    }
   }
 });
 
@@ -339,6 +382,7 @@ gladys.onAction('unpair', async () => {
   await gladys.setConfig({ [APP_TOKEN_CONFIG_KEY]: '' });
   client.reset();
   watcher.reset();
+  shutterCheck.stop();
   health.reset();
   await gladys.setConnectionStatus(false).catch(() => {});
   return MESSAGES.unpaired;

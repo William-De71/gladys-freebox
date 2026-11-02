@@ -92,6 +92,32 @@ test('shutter position is inverted before being written', async () => {
   assert.deepEqual(client.writes[0], { nodeId: '21', endpointId: '3', value: 30 });
 });
 
+// The position the shutter must reach comes back, so its arrival can be
+// checked: the box accepts commands it no longer applies.
+test('a shutter move returns the position to reach, a stop or a legacy shutter nothing', async () => {
+  const client = fakeClient();
+  const set = (device, feature, value) =>
+    setDeviceValue(gladys, client, 'token', device, feature, value);
+  assert.deepEqual(await set(shutterDevice, shutterStateFeature, COVER_STATE.CLOSE), {
+    nodeId: '21',
+    endpointId: '3',
+    target: 100,
+  });
+  assert.deepEqual(await set(shutterDevice, shutterStateFeature, COVER_STATE.OPEN), {
+    nodeId: '21',
+    endpointId: '3',
+    target: 0,
+  });
+  assert.deepEqual(await set(shutterDevice, shutterPositionFeature, 70), {
+    nodeId: '21',
+    endpointId: '3',
+    target: 30,
+  });
+  assert.equal(await set(shutterDevice, shutterStateFeature, COVER_STATE.STOP), null);
+  const legacy = { ...shutterDevice, model: 'store' };
+  assert.equal(await set(legacy, shutterStateFeature, COVER_STATE.OPEN), null);
+});
+
 // The endpoint is read from the device features, not hard-coded, because it
 // depends on the shutter model.
 test('shutter open fails explicitly when the device has no position endpoint', async () => {

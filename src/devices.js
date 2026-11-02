@@ -533,7 +533,9 @@ function featureLabel(device, feature) {
  * @param {number} value - The new value.
  * @param {object} [options] - Options.
  * @param {number} [options.retryDelayMs] - Pause before the second attempt.
- * @returns {Promise<void>} Resolves when applied.
+ * @returns {Promise<{ nodeId: string, endpointId: string, target: number }|null|undefined>}
+ * Resolves when applied, with the position (Freebox scale, 100 = closed) a
+ * shutter should reach when the box can confirm it, nothing otherwise.
  * @example
  * await setDeviceValue(gladys, client, appToken, device, feature, 1);
  */
@@ -571,6 +573,8 @@ export async function setDeviceValue(
 
   let endpointIdToDevice = endpointId;
   let valueToDevice = transformedValue;
+  // The position the shutter should reach, when the box can tell whether it did.
+  let move = null;
 
   // A Gladys SHUTTER.STATE command (open / stop / close) has to be translated
   // to whatever the physical Freebox model exposes. `store_slider` shutters —
@@ -602,12 +606,19 @@ export async function setDeviceValue(
           endpointIdToDevice = positionEndpointId;
           // Freebox "Consigne d'ouverture" is reversed vs Gladys: 100 = closed.
           valueToDevice = transformedValue === COVER_STATE.CLOSE ? 100 : 0;
+          move = { nodeId, endpointId: positionEndpointId, target: valueToDevice };
         } else {
           // STOP: press the `void` stop button, which takes no payload.
           valueToDevice = null;
         }
         break;
     }
+  } else if (
+    feature.category === DEVICE_FEATURE_CATEGORIES.SHUTTER &&
+    feature.type === DEVICE_FEATURE_TYPES.SHUTTER.POSITION &&
+    Number.isFinite(valueToDevice)
+  ) {
+    move = { nodeId, endpointId, target: valueToDevice };
   } else if (feature.type === DEVICE_FEATURE_TYPES.BUTTON.PUSH) {
     // Alarm commands are `void` endpoints: writing to them triggers the action,
     // and the Freebox rejects a payload.
@@ -625,6 +636,7 @@ export async function setDeviceValue(
       `PUT /home/endpoints/${nodeId}/${endpointIdToDevice} ${JSON.stringify({ value: valueToDevice })}`,
   );
   await writeWithRetry(client, appToken, nodeId, endpointIdToDevice, valueToDevice, retryDelayMs);
+  return move;
 }
 
 /**

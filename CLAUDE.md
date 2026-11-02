@@ -45,6 +45,7 @@ src/i18n.js                  widget texts and toasts, in en / fr / de / es
 src/watcher.js               30 s loop: LAN hosts, call log and home node snapshots
 src/tracker.js               snapshots -> trigger transitions (pure logic)
 src/homeHealth.js            home nodes + shutter commands -> lost/back episodes
+src/shutterCheck.js          position read again 90 s after a move: did it happen?
 src/events.js                scene trigger payloads, Wake-on-LAN and reboot fields
 src/widgets.js               box, calls and network widget contents (pure)
 src/widgetViews.js           chart offset and list page per widget settings
@@ -97,9 +98,13 @@ docs/illustrations/          generated widget images (render.sh, gen.mjs, render
   has none), but turning the Wi-Fi off does make the Wi-Fi hosts leave.
 - **Home automation health.** One `home_reachability` event per episode, never
   one per reading: a shutter lost two readings in a row, a silent home API
-  (only on a box where shutters were seen) or a failed shutter command opens
-  it; a reading with every shutter back and no failed command closes it. A
-  rebooting box (nothing answers) changes nothing. The reboot scene action
+  (only on a box where shutters were seen), a failed shutter command or two
+  moves in a row that did not reach their position (`shutter_not_moving`)
+  opens it; a reading with every shutter back and no failed command closes
+  it. An accepted command proves nothing (a broken box accepts them all and
+  keeps the shutters `active`): only a reached position, or an accepted
+  command that cannot be checked (legacy `store`), clears a failure; a stop
+  never does. A rebooting box (nothing answers) changes nothing. The reboot scene action
   keeps its last run in the config (`last_scene_reboot_at`) and never runs
   twice within its minimum interval: a scene must not reboot-loop the box.
 - **Permissions.** Reading the settings, the system state, the Wi-Fi state

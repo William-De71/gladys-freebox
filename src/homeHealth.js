@@ -3,14 +3,17 @@
 //
 // The Freebox Delta drives io-homecontrol shutters itself, and its home system
 // is known to lose them after a while: the box marks the shutters
-// `unreachable`, its home API stops answering, or a command is refused — until
-// the box is rebooted. This module turns the readings of the watch loop and the
+// `unreachable`, its home API stops answering, a command is refused, or —
+// silently — commands are accepted but the shutters no longer move (see
+// shutterCheck.js) — until the box is rebooted. This module turns the readings of the watch loop and the
 // outcome of the shutter commands into ONE event per episode: `unreachable`
 // when the problem starts, `reachable` when it is over. A scene can then warn
 // the user or reboot the box.
 //
 // Guards against false alarms:
 //   - a node or home API problem must last CONFIRM_ROUNDS readings in a row;
+//   - a shutter that did not reach its position must happen MISSED_MOVES
+//     times in a row (a hand on the remote, an obstacle);
 //   - the home API is only said to be silent on a box where shutters were
 //     seen before (a Revolution, a Pop or an Ultra has no home system);
 //   - a round where the whole box is silent (rebooting) changes nothing: the
@@ -25,25 +28,37 @@ export const SHUTTER_CATEGORIES = ['shutter', 'basic_shutter'];
 // few seconds is not worth a scene.
 export const CONFIRM_ROUNDS = 2;
 
+// Moves that did not happen, in a row, before an alarm. One move that does
+// reset the count.
+export const MISSED_MOVES = 2;
+
 export const CAUSES = {
   DEVICES_UNREACHABLE: 'devices_unreachable',
   HOME_NOT_RESPONDING: 'home_not_responding',
   COMMAND_FAILED: 'command_failed',
+  SHUTTER_NOT_MOVING: 'shutter_not_moving',
 };
 
 /**
  * Create the health tracker.
  * @param {object} [options] - Options.
  * @param {number} [options.confirmRounds] - Readings in a row before an alarm.
+ * @param {number} [options.missedMoves] - Missed moves in a row before an alarm.
  * @param {Function} [options.now] - `() => number`, in ms.
- * @returns {object} The tracker: update, commandResult, current, reset.
+ * @returns {object} The tracker: update, commandResult, moveResult, current, reset.
  * @example
  * const health = createHomeHealth();
  * const event = health.update({ nodes }); // { event: 'unreachable', ... } or null
  */
-export function createHomeHealth({ confirmRounds = CONFIRM_ROUNDS, now = () => Date.now() } = {}) {
+export function createHomeHealth({
+  confirmRounds = CONFIRM_ROUNDS,
+  missedMoves = MISSED_MOVES,
+  now = () => Date.now(),
+} = {}) {
   let shuttersSeen = false;
   let pending = 0;
+  let missed = 0;
+  // `{ cause, name }` of the last command that did not work, or null.
   let commandFailure = null;
   let episode = null;
 
@@ -113,19 +128,43 @@ export function createHomeHealth({ confirmRounds = CONFIRM_ROUNDS, now = () => D
       }
       // A failed command is already the result of several attempts: no wait.
       if (commandFailure) {
-        return open({ cause: CAUSES.COMMAND_FAILED, names: [commandFailure] });
+        return open({ cause: commandFailure.cause, names: [commandFailure.name] });
       }
       return null;
     },
 
     /**
      * Outcome of a shutter command. A failure keeps the episode open until a
-     * command goes through again.
+     * command goes through again. Only report a success for a command whose
+     * effect cannot be checked (moveResult does it otherwise): an accepted
+     * command proves nothing on a box that accepts them all.
      * @param {boolean} ok - Whether the box accepted the command.
      * @param {string} name - The shutter name.
      */
     commandResult(ok, name) {
-      commandFailure = ok ? null : name;
+      if (ok) {
+        missed = 0;
+        commandFailure = null;
+      } else {
+        commandFailure = { cause: CAUSES.COMMAND_FAILED, name };
+      }
+    },
+
+    /**
+     * Whether a shutter reached the position of its last command.
+     * @param {boolean} ok - Reached.
+     * @param {string} name - The shutter name.
+     */
+    moveResult(ok, name) {
+      if (ok) {
+        missed = 0;
+        commandFailure = null;
+        return;
+      }
+      missed += 1;
+      if (missed >= missedMoves) {
+        commandFailure = { cause: CAUSES.SHUTTER_NOT_MOVING, name };
+      }
     },
 
     /** @returns {object|null} The open episode (`cause`, `names`, `since`). */
@@ -137,6 +176,7 @@ export function createHomeHealth({ confirmRounds = CONFIRM_ROUNDS, now = () => D
     reset() {
       shuttersSeen = false;
       pending = 0;
+      missed = 0;
       commandFailure = null;
       episode = null;
     },

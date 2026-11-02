@@ -112,6 +112,39 @@ test('a failed command opens an episode at the next reading, closed by a command
   assert.equal(health.update({ nodes: [shutter(1)] }).event, 'reachable');
 });
 
+test('two missed moves in a row open an episode, a move that happens closes it', () => {
+  const { health, advance } = setup();
+  health.update({ nodes: [shutter(1)] });
+  health.moveResult(false, 'Volet salon');
+  // One miss: a hand on the remote, an obstacle. Nothing yet.
+  assert.equal(health.update({ nodes: [shutter(1)] }), null);
+  health.moveResult(false, 'Volet salon');
+  assert.deepEqual(health.update({ nodes: [shutter(1)] }), {
+    event: 'unreachable',
+    cause: CAUSES.SHUTTER_NOT_MOVING,
+    names: ['Volet salon'],
+  });
+  advance(12);
+  // The box keeps saying every shutter is fine: still open.
+  assert.equal(health.update({ nodes: [shutter(1)] }), null);
+  health.moveResult(true, 'Volet salon');
+  assert.deepEqual(health.update({ nodes: [shutter(1)] }), {
+    event: 'reachable',
+    cause: CAUSES.SHUTTER_NOT_MOVING,
+    names: [],
+    minutes: 12,
+  });
+});
+
+test('a move that happens resets the count of missed moves', () => {
+  const { health } = setup();
+  health.update({ nodes: [shutter(1)] });
+  health.moveResult(false, 'Volet salon');
+  health.moveResult(true, 'Volet cuisine');
+  health.moveResult(false, 'Volet salon');
+  assert.equal(health.update({ nodes: [shutter(1)] }), null);
+});
+
 test('reset forgets the episode and the shutters seen', () => {
   const { health } = setup();
   health.update({ nodes: [shutter(1, 'unreachable')] });

@@ -600,10 +600,10 @@
           "key": "cause",
           "type": "string",
           "label": {
-            "en": "Cause (devices_unreachable, home_not_responding, command_failed)",
-            "fr": "Cause (devices_unreachable, home_not_responding, command_failed)",
-            "de": "Ursache (devices_unreachable, home_not_responding, command_failed)",
-            "es": "Causa (devices_unreachable, home_not_responding, command_failed)"
+            "en": "Cause (devices_unreachable, home_not_responding, command_failed, shutter_not_moving)",
+            "fr": "Cause (devices_unreachable, home_not_responding, command_failed, shutter_not_moving)",
+            "de": "Ursache (devices_unreachable, home_not_responding, command_failed, shutter_not_moving)",
+            "es": "Causa (devices_unreachable, home_not_responding, command_failed, shutter_not_moving)"
           }
         },
         {
