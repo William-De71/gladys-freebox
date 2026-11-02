@@ -5,6 +5,12 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions
 follow [Semantic Versioning](https://semver.org/). This file is generated at
 each release from the Conventional Commits: do not edit it by hand.
 
+## [1.8.0] - 2026-11-02
+
+### Added
+
+- detect shutters that no longer move although the Freebox accepts their commands ([658e3fc](https://github.com/William-De71/gladys-freebox/commit/658e3fc11a2fe5f57a40815c3788e556042becd2))
+
 ## [1.7.0] - 2026-10-27
 
 ### Added
@@ -115,6 +121,7 @@ each release from the Conventional Commits: do not edit it by hand.
 
 ## 1.0.0 (2026-07-24)
 
+[1.8.0]: https://github.com/William-De71/gladys-freebox/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/William-De71/gladys-freebox/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/William-De71/gladys-freebox/compare/v1.5.1...v1.6.0
 [1.5.1]: https://github.com/William-De71/gladys-freebox/compare/v1.5.0...v1.5.1
